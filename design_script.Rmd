@@ -1,0 +1,422 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+if(!require('pacman')) {install.packages('pacman')}
+pacman::p_load(openxlsx, dplyr, reshape2, stringr)
+
+# BiocManager::install("GenomicRanges")
+library(GenomicRanges)
+```
+
+```{r}
+source('library_design_functions.R')
+```
+
+
+# Input Parameters + Data
+```{r}
+# Set Parameters
+snp_region_length = 200
+num_top_guides = 3
+
+# Import Relevant Datasets
+wd <- getwd()
+wd # verify directory location
+
+snp_list <- unique(read.xlsx(paste0(wd,"//input//snp_loc_hg19.xlsx")))
+rownames(snp_list) <- NULL
+snp_list$chr <- as.character(snp_list$chr)
+
+# Get refseq conversion for chromosome numbers. Needed for compatibility with CRISPick
+refseq_lookup <- read.delim(paste0(wd,"//input//seq_report_hg19.tsv"))
+refseq_lookup <- subset(refseq_lookup, Role=="assembled-molecule")
+
+# Rename columns for convenience
+names(refseq_lookup)[names(refseq_lookup)=="Chromosome.name"] <- "chr"
+names(refseq_lookup)[names(refseq_lookup)=="RefSeq.seq.accession"] <- "refseq"
+```
+# Preprocess Input for CRISPick
+## Combine Nearby SNP Regions
+```{r}
+# set half length parameter
+half_len = snp_region_length/2-1
+
+# Create SNP "regions". +/- 1/2 the total region width.
+snp_region <- snp_list %>%
+  mutate(start = pos-half_len,
+         end = pos+half_len)
+
+# Use GenomicRanges to find region overlaps. Create GRanges objects to use it.
+g_region <- GRanges(seqnames = snp_region$chr,
+                  ranges = IRanges(start = snp_region$start, end=snp_region$end))
+
+g_snps <- GRanges(seqnames = snp_region$chr,
+                  ranges = IRanges(start=snp_region$pos, end=snp_region$pos),
+                  SNP = snp_region$snp)
+
+# Merge overlapping SNP regions
+g_region <- reduce(g_region)
+
+# Map SNPs back to merged regions.
+g_overlap <- findOverlaps(g_region, g_snps)
+
+any(is.na(g_overlap@to)) # << Check for lost SNPs. Should be FALSE
+
+# Convert regions from GRanges object to dataframe
+regions <- as.data.frame(g_region) 
+regions$SNP <- NA
+names(regions)[names(regions)=="seqnames"] <- "chr"
+
+# Convert snps from GRanges object to dataframe
+snps <- as.data.frame(g_snps)
+
+# Map SNPs to their regions.
+for(i in 1:nrow(regions)){
+  # i = 5
+  reg_idx <- which(g_overlap@from==i) #get index for region
+  snp_idx <- g_overlap@to[reg_idx] # map to index for SNP
+  
+  regions[i, "SNP"] <- paste0(snps$SNP[snp_idx],collapse="|")
+}
+```
+## Convert to CRISPick Format
+```{r}
+# Convert chr to specific RefSeq Accession name
+lookup <- refseq_lookup %>%
+  select(chr, refseq)
+
+crispick_reg <- select(regions, chr, start, end, SNP)
+
+crispick_reg <- left_join(crispick_reg, lookup, by="chr")
+
+# Add range for CRISPick
+crispick_reg <- crispick_reg %>%
+  mutate(crispick = paste0(refseq,":+:",start,"-",end))
+```
+
+## Export SNP Regions to CRISPick Input Format
+Also export SNP regions for 200bp, 300bp, and 400bp widths.
+```{r}
+# export <- crispick_reg %>% select(crispick)
+# 
+# write.table(export, "loc200.fasta", row.names=FALSE, col.names=FALSE, quote=FALSE)
+
+# write.xlsx(regions, file = paste0(wd, "//input//regions_400bp.xlsx"))
+```
+PAUSE >> run CRISPick using fasta file.
+
+----------------------------------------------------------------------------
+
+# Create Library from CRISPick Output
+## Import CRISPick Output
+```{r}
+guides <- read.xlsx(paste0(wd,"//200bp_i30//sgrna-designs.xlsx"))
+
+#Remove some extraneous columns
+# guides <- guides %>%
+#   subset(select = -c(Quota, Target.Taxon, Target.Gene.ID, Target.Gene.Symbol, Target.Alias, 
+#                      CRISPR.Mechanism, Target.Domain, TSS.Position, PAM.Policy))
+
+# For debugging
+guides <- guides %>%
+  select( c(Input, Reference.Sequence, Orientation, `sgRNA.'Cut'.Position`, 
+            sgRNA.Sequence, sgRNA.Context.Sequence, `On-Target.Efficacy.Score`, Pick.Order) )
+
+```
+
+## GC + TTTT filter
+Good GC content, no poly T, On-Target Efficacy > 0.2
+```{r}
+guides <- guides %>%
+  mutate(GC_percent = (str_count(guides$sgRNA.Sequence,"G")+str_count(guides$sgRNA.Sequence,"C"))/20,
+         polyT = str_count(guides$sgRNA.Sequence,"TTTT")) # TTT shows up, so this seems to work.
+
+guides <- guides %>%
+  subset((GC_percent>=0.25) & (GC_percent<=0.75) & (polyT < 1) & (`On-Target.Efficacy.Score` > 0.2)) #filtered ~40 guides of 2000; for 200bp_i30 w/ efficacy filter, went from ~1.7k to 700 guides.
+
+rownames(guides) = NULL
+```
+
+## Add guide coordinates
+```{r}
+# Add chromosome number based on refseq lookup table
+lookup <- refseq_lookup %>%
+  select(chr, refseq)
+
+guides <- left_join(guides, lookup, join_by("Reference.Sequence"=="refseq"))
+
+# Placeholder columns for start and end..
+guides$start <- NA
+guides$end <- NA
+
+
+# probably could do mutate() for this..
+for (i in 1:nrow(guides)){
+  # if the guide is sense vs antisense
+  if (guides$Orientation[i]=="sense"){
+    guides$start[i] = guides$`sgRNA.'Cut'.Position`[i] - 17
+    guides$end[i] = guides$`sgRNA.'Cut'.Position`[i] + 2
+    
+  } else if (guides$Orientation[i]=="antisense"){
+    guides$start[i] = guides$`sgRNA.'Cut'.Position`[i] - 3
+    guides$end[i] = guides$`sgRNA.'Cut'.Position`[i] + 16
+    
+  }
+}
+
+# Add the SNP Region
+guides <- left_join(guides, select(crispick_reg, SNP, crispick), join_by("Input"=="crispick"))
+
+all(guides$start < guides$end) # CHECK that coordinate order is correct. TRUE if okay.
+
+# Add rownumber for reference later
+guides$n <- as.numeric(rownames(guides))
+
+
+all(guides$n == as.numeric(rownames(guides))) #CHECK that n == rownumber. TRUE if okay.
+
+```
+
+## Remove Overlapping Guides
+Get indices of overlapping guides.
+```{r}
+g_guides <- GRanges(seqnames = guides$chr,
+                    ranges = IRanges(start = guides$start, end=guides$end))
+
+g_GDO_overlap <- findOverlaps(g_guides, ignore.strand=TRUE) #drop.self=TRUE, 
+
+GDO_overlap <- as.data.frame(g_GDO_overlap)
+```
+
+Get top
+```{r}
+# Input: guides, num_top_guides, regions, GDO_overlap
+
+# topGDO <- pickTopGDO(5, guides, regions, GDO_overlap)
+
+guides_pool <- guides
+
+# num_top_guides <- 3 # Debug, set @ top
+
+top_guides <- guides[0,] # Creates empty dataframe w/ same column names as guides.
+
+# guide regions should be non-overlapping by definition, so we can go region by region.
+# use 'n' to map back to GRanges indices
+
+# we are going to treat the CRISPick Guides as our "pool" and then pull or remove guides from the pool as we go
+
+for (i in 1:num_top_guides){
+  
+  for (j in 1:nrow(regions)) {
+    # j = 1
+    if (length(subset(guides_pool, SNP==regions$SNP[j]))>0){
+      top <- guides_pool %>%
+        subset(SNP==regions$SNP[j]) %>%
+        arrange(Pick.Order) %>%
+        dplyr::slice(1)
+      
+      # get the top pick (based on Pick Order), add this to top_guides.
+      # then remove all guides that are overlapping with the top pick.
+      top_guides <- bind_rows(top_guides, top)
+
+      remove <- GDO_overlap[GDO_overlap$queryHits==top$n,2] # gets indices of guides that overlap the current top pick
+      
+      guides_pool <- guides_pool[!guides_pool$n %in% remove,] # is this okay? are we getting the right index?
+      
+    }
+  }
+}
+```
+
+# QC
+How is the on-target score?
+```{r}
+mean(table(top_guides$SNP))
+hist(table(top_guides$SNP))
+
+mean(top_guides$`On-Target.Efficacy.Score`)
+hist(top_guides$`On-Target.Efficacy.Score`)
+
+# guide_summary <- top_guides %>%
+#   group_by(SNP) %>%
+#   summarise(mean = mean(`On-Target.Efficacy.Score`))
+# 
+# subset(guide_summary, mean < 0.2)
+```
+How many/which regions don't have enough guides?
+```{r}
+# Check for any regions that dropped out completely
+reg <- data.frame(table(top_guides$SNP))
+names(reg) <- c("SNP", "Freq")
+missing_reg <- anti_join(regions, reg, by="SNP")
+
+missing <- data.frame(SNP = missing_reg$SNP, Freq = 0)
+
+low_reg <- subset(reg, Freq < 3)
+
+test <- dplyr::union(low_reg, missing) # 10 regions dont' have enough guides
+```
+
+# Export guides
+```{r}
+write.xlsx(guides, file = paste0(wd, "//output//guides_400bp_i30_0.2.xlsx"))
+
+write.xlsx(top_guides, file = paste0(wd, "//output//top3guides_400bp_i30_0.2.xlsx"))
+```
+
+# Combining Guide Searches
+First ran guide search for 200bp, ran QC. Then ran 300bp and 400bp to get more guides for poorly performing regions.
+
+Loading all guide searches:
+```{r}
+# Load all guide pools
+GDO_200bp <- read.xlsx(paste0(wd,"//output//top3guides_200bp_i30_0.2.xlsx"))
+GDO_300bp <- read.xlsx(paste0(wd,"//output//top3guides_300bp_i30_0.2.xlsx"))
+GDO_400bp <- read.xlsx(paste0(wd,"//output//top3guides_400bp_i30_0.2.xlsx"))
+# note, less guides in 300bp+400bp because the regions were combined. There are fewer regions.
+
+# Load regions by width
+regions_200 <- read.xlsx(paste0(wd,"//input//regions_200bp.xlsx"))
+regions_300 <- read.xlsx(paste0(wd,"//input//regions_300bp.xlsx"))
+regions_400 <- read.xlsx(paste0(wd,"//input//regions_400bp.xlsx"))
+
+# Initialize final library
+regions <- regions_200
+final_GDO <- GDO_200bp
+
+# ----------------------------------------------------------------
+
+# QC Checks: missing regions, few guides, or low score.
+# Creates list of regions that need a bigger guide pool.
+
+reg <- data.frame(table(final_GDO$SNP)) %>% # Create dataframe that counts number of guides/SNP
+  setNames(c("SNP","Freq")) # Set column names.
+
+poor_reg <- data.frame(SNP=character())
+
+poor_reg <- bind_rows(poor_reg, 
+                  anti_join(regions, reg, by = "SNP") %>%
+                    select(SNP))
+
+poor_reg <- bind_rows(poor_reg, reg %>% 
+                        subset(Freq < 3) %>%
+                        select(SNP))
+
+# Removed Efficacy < 0.2 in Preprocessing
+
+# poor_reg <- bind_rows(poor_reg,
+#   group_by(final_GDO, SNP) %>%
+#   summarise(mean = mean(`On-Target.Efficacy.Score`)) %>%
+#   subset(mean < 0.2) %>%
+#   select(SNP))
+
+# ------------------------------------------------------------------
+# Get guides from 300bp pool for bad regions
+
+final_GDO <- subset(final_GDO, !(SNP %in% poor_reg$SNP))
+final_GDO <- bind_rows(final_GDO, 
+                   subset(GDO_300bp, SNP %in% poor_reg$SNP))
+
+# --------------------------------------------------------------------
+
+# Update list of regions that need more/better guides
+
+reg <- data.frame(table(final_GDO$SNP)) %>% # Create dataframe that counts number of guides/SNP
+  setNames(c("SNP","Freq")) # Set column names.
+
+poor_reg <- data.frame(SNP=character())
+
+poor_reg <- bind_rows(poor_reg, 
+                  anti_join(regions, reg, by = "SNP") %>%
+                    select(SNP))
+
+poor_reg <- bind_rows(poor_reg, reg %>% 
+                        subset(Freq < 3) %>%
+                        select(SNP))
+
+
+# --------------------------------------------------------------------
+# Update bad regions w/ guides from the 400bp search. Matches by SNP region.
+
+final_GDO <- subset(final_GDO, !(SNP %in% poor_reg$SNP))
+final_GDO <- bind_rows(final_GDO, 
+                   subset(GDO_400bp, SNP %in% poor_reg$SNP))
+
+
+# --------------------------------------------------------------------
+
+# QUALITY CONTROL
+
+# Check that you have all the expected regions from the 200bp
+  # i.e. you haven't LOST any regions and you haven't ADDED any regions by accident
+
+all(final_GDO$SNP %in% regions$SNP)
+!any(is.na(final_GDO$SNP))
+
+
+# Check for no overlaps between GUIDES in the library
+
+g_GDO <- GRanges(seqnames = final_GDO$chr,
+                    ranges = IRanges(start = final_GDO$start, end=final_GDO$end))
+
+g_overlap <- findOverlaps(g_GDO, ignore.strand=TRUE, drop.self=TRUE)
+
+GDO_overlap <- as.data.frame(g_overlap) # no overlaps detected
+
+# Check that each guide overlaps with only ONE REGION
+
+regions <- regions_200
+
+g_regions <- GRanges(seqnames = regions$chr, 
+                     ranges = IRanges(start = regions$start, end=regions$end))
+
+g_overlap <- findOverlaps(g_GDO, g_regions, ignore.strand=TRUE)
+
+region_overlap <- as.data.frame(g_overlap) # 212 out of 222 guides overlap the 200bp region
+
+
+```
+
+Export guide list:
+```{r}
+# write.xlsx(final_GDO, file = paste0(wd, "//output//final_GDO_v1.xlsx"))
+
+GDO_output <- read.xlsx(paste0(wd,"//output//final_GDO_v1.xlsx"))
+
+# all(GDO_output$sgRNA.Sequence %in% final_GDO$sgRNA.Sequence)
+# all(final_GDO$sgRNA.Sequence %in% GDO_output$sgRNA.Sequence)
+```
+
+# Guide Library Updates
+
+Add + Replace Positive Controls
+
+## Load data
+```{r}
+# Import new guide designs
+pos_i30 <- read.xlsx(paste0(wd,"//pos_ctrl//i30//sgrna-designs.xlsx"))
+pos_a30 <- read.xlsx(paste0(wd,"//pos_ctrl//a30//sgrna-designs.xlsx"))
+
+test <- inner_join(pos_i30, pos_a30, by="sgRNA.Sequence") #almost no overlaps btwn i + a
+
+pos_ctrl <- read.xlsx(paste0(wd,"//pos_ctrl//i30//sgrna-designs.xlsx"))
+
+```
+
+
+
+
+# Misc
+Comparing CRISPRi vs CRISPRa for CRISPick
+```{r}
+# top_guides_i <- top_guides
+# top_guides_a <- top_guides
+
+top_diff <- anti_join(top_guides_i, top_guides_a, by="sgRNA.Sequence")
+```
+
