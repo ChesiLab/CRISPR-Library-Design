@@ -1,6 +1,7 @@
 # Author: Shannon Laub
 
 # Description: Contains functions for designScript.Rmd
+# findSnpRegions()
 # pickTopGDO()
 # put description here...
 
@@ -9,6 +10,8 @@
 
 # Guide preprocessing + add guide coords
 
+
+# -----------------------------------------------------------------------------
 # Generate Regions
 
 findSnpRegions <- function(regionLength, snpList){
@@ -56,6 +59,28 @@ findSnpRegions <- function(regionLength, snpList){
   return(regions)
 }
 
+# -----------------------------------------------------------------------------
+# Description: converts chromosome name to the relevant ENCODE refseq lookup.
+# Add crispick column that formats the region location for CRISPick input.
+
+formatCrispick <- function(regions, refseqLookup){
+  lookup <- refseqLookup %>%
+    select(chr, refseq)
+  
+  crispickInput <- select(regions, chr, start, end, SNP)
+  
+  crispickInput <- left_join(crispickInput, lookup, by="chr")
+  
+  # Add range for CRISPick
+  crispickInput <- crispickInput %>%
+    mutate(crispick = paste0(refseq,":+:",start,"-",end))
+  
+  return(crispickInput)
+}
+
+# -----------------------------------------------------------------------------
+# pickTopGDO()
+# Description: picks the top 'n' guides from a pool of guides
 pickTopGDO <- function(numTopGDO, guidePool, regions, overlapGDO) {
   topGDO <- guidePool[0,]
   

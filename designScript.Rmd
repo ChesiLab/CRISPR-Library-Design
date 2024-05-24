@@ -15,7 +15,6 @@ library(GenomicRanges)
 
 ```{r}
 source('LibraryDesignFunctions.R')
-source('CrispickPreprocessFunctions.R')
 ```
 
 
@@ -30,46 +29,47 @@ rownames(snp_list) <- NULL
 snp_list$chr <- as.character(snp_list$chr)
 
 # Get refseq conversion for chromosome numbers. Needed for compatibility with CRISPick
-refseq_lookup <- read.delim(paste0(wd,"//input//seq_report_hg19.tsv"))
-refseq_lookup <- subset(refseq_lookup, Role=="assembled-molecule")
+refseqLookup <- read.delim(paste0(wd,"//input//seq_report_hg19.tsv"))
+refseqLookup <- subset(refseq_lookup, Role=="assembled-molecule")
 
 # Rename columns for convenience
-names(refseq_lookup)[names(refseq_lookup)=="Chromosome.name"] <- "chr"
-names(refseq_lookup)[names(refseq_lookup)=="RefSeq.seq.accession"] <- "refseq"
+names(refseqLookup)[names(refseqLookup)=="Chromosome.name"] <- "chr"
+names(refseqLookup)[names(refseqLookup)=="RefSeq.seq.accession"] <- "refseq"
 ```
 # Preprocess Input for CRISPick
 ## Combine Nearby SNP Regions
 ```{r}
-regions <- findSnpRegions(200, snp_list)
+regions200 <- findSnpRegions(200, snp_list)
+regions300 <- findSnpRegions(300, snp_list)
+regions400 <- findSnpRegions(400, snp_list)
 
 # any(is.na(g_overlap@to)) # << Check for lost SNPs. Should be FALSE
-
 ```
-## Convert to CRISPick Format
+## Convert to CRISPick Input Format
 ```{r}
-# Convert chr to specific RefSeq Accession name
-lookup <- refseq_lookup %>%
-  select(chr, refseq)
+crispick200 <- formatCrispick(regions200, refseqLookup)
+crispick300 <- formatCrispick(regions300, refseqLookup)
+crispick400 <- formatCrispick(regions400, refseqLookup)
 
-crispick_reg <- select(regions, chr, start, end, SNP)
-
-crispick_reg <- left_join(crispick_reg, lookup, by="chr")
-
-# Add range for CRISPick
-crispick_reg <- crispick_reg %>%
-  mutate(crispick = paste0(refseq,":+:",start,"-",end))
+crispick200Input <- crispick200 %>% select(crispick)
+crispick300Input <- crispick300 %>% select(crispick)
+crispick400Input <- crispick400 %>% select(crispick)
 ```
 
-## Export SNP Regions to CRISPick Input Format
-Also export SNP regions for 200bp, 300bp, and 400bp widths.
+## Export SNP Regions as regions and as CRISPick Input Format
 ```{r}
-# export <- crispick_reg %>% select(crispick)
-# 
-# write.table(export, "loc200.fasta", row.names=FALSE, col.names=FALSE, quote=FALSE)
+# Save SNP regions
+write.xlsx(regions, file = paste0(wd, "//input//regions_400bp.xlsx"))
+write.xlsx(regions, file = paste0(wd, "//input//regions_400bp.xlsx"))
+write.xlsx(regions, file = paste0(wd, "//input//regions_400bp.xlsx"))
 
-# write.xlsx(regions, file = paste0(wd, "//input//regions_400bp.xlsx"))
+# Save CRISPick Inputs
+write.table(crispick200Input, "loc200.fasta", row.names=FALSE, col.names=FALSE, quote=FALSE)
+write.table(crispick300Input, "loc200.fasta", row.names=FALSE, col.names=FALSE, quote=FALSE)
+write.table(crispick400Input, "loc200.fasta", row.names=FALSE, col.names=FALSE, quote=FALSE)
 ```
-PAUSE >> run CRISPick using fasta file.
+
+PAUSE HERE >> run CRISPick using fasta file.
 
 ----------------------------------------------------------------------------
 
