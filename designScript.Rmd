@@ -14,11 +14,12 @@ library(GenomicRanges)
 ```
 
 ```{r}
-source('library_design_functions.R')
+source('libraryDesignFunctions.R')
+source('crispickPreprocess.R')
 ```
 
 
-# Input Parameters + Data
+# Input Parameters + Load Data
 ```{r}
 # Set Parameters
 snp_region_length = 200
@@ -197,40 +198,8 @@ Get top
 ```{r}
 # Input: guides, num_top_guides, regions, GDO_overlap
 
-# topGDO <- pickTopGDO(5, guides, regions, GDO_overlap)
+topGDO <- pickTopGDO(5, guides, regions, GDO_overlap)
 
-guides_pool <- guides
-
-# num_top_guides <- 3 # Debug, set @ top
-
-top_guides <- guides[0,] # Creates empty dataframe w/ same column names as guides.
-
-# guide regions should be non-overlapping by definition, so we can go region by region.
-# use 'n' to map back to GRanges indices
-
-# we are going to treat the CRISPick Guides as our "pool" and then pull or remove guides from the pool as we go
-
-for (i in 1:num_top_guides){
-  
-  for (j in 1:nrow(regions)) {
-    # j = 1
-    if (length(subset(guides_pool, SNP==regions$SNP[j]))>0){
-      top <- guides_pool %>%
-        subset(SNP==regions$SNP[j]) %>%
-        arrange(Pick.Order) %>%
-        dplyr::slice(1)
-      
-      # get the top pick (based on Pick Order), add this to top_guides.
-      # then remove all guides that are overlapping with the top pick.
-      top_guides <- bind_rows(top_guides, top)
-
-      remove <- GDO_overlap[GDO_overlap$queryHits==top$n,2] # gets indices of guides that overlap the current top pick
-      
-      guides_pool <- guides_pool[!guides_pool$n %in% remove,] # is this okay? are we getting the right index?
-      
-    }
-  }
-}
 ```
 
 # QC
@@ -398,17 +367,106 @@ Add + Replace Positive Controls
 
 ## Load data
 ```{r}
+wd <- getwd()
+
 # Import new guide designs
-pos_i30 <- read.xlsx(paste0(wd,"//pos_ctrl//i30//sgrna-designs.xlsx"))
-pos_a30 <- read.xlsx(paste0(wd,"//pos_ctrl//a30//sgrna-designs.xlsx"))
+posA30 <- read.xlsx(paste0(wd,"//crispick_output//pos_ctrl_a30_sgrna-designs.xlsx"))
+names(posA30)[names(posA30)=="Target.Gene.Symbol"] <- "SNP"
 
-test <- inner_join(pos_i30, pos_a30, by="sgRNA.Sequence") #almost no overlaps btwn i + a
-
-pos_ctrl <- read.xlsx(paste0(wd,"//pos_ctrl//i30//sgrna-designs.xlsx"))
 
 ```
 
+```{r}
+# Add chromosome number based on refseq lookup table
+lookup <- refseq_lookup %>%
+  select(chr, refseq)
 
+posA30 <- left_join(posA30, lookup, join_by("Reference.Sequence"=="refseq"))
+
+# Placeholder columns for start and end..
+posA30$start <- NA
+posA30$end <- NA
+
+
+# probably could do mutate() for this..
+for (i in 1:nrow(posA30)){
+  # if the guide is sense vs antisense
+  if (posA30$Orientation[i]=="sense"){
+    posA30$start[i] = posA30$`sgRNA.'Cut'.Position`[i] - 17
+    posA30$end[i] = posA30$`sgRNA.'Cut'.Position`[i] + 2
+    
+  } else if (posA30$Orientation[i]=="antisense"){
+    posA30$start[i] = posA30$`sgRNA.'Cut'.Position`[i] - 3
+    posA30$end[i] = posA30$`sgRNA.'Cut'.Position`[i] + 16
+    
+  }
+}
+
+# Use Input as the "SNP" region
+# posA30 <- left_join(posA30, select(crispick_reg, SNP, crispick), join_by("Input"=="crispick"))
+names(posA30)[names(posA30)=="Target.Gene.Symbol"] <- "SNP"
+
+all(posA30$start < posA30$end) # CHECK that coordinate order is correct. TRUE if okay.
+
+# Add rownumber for reference later
+posA30$n <- as.numeric(rownames(posA30))
+
+
+all(posA30$n == as.numeric(rownames(posA30))) #CHECK that n == rownumber. TRUE if okay.
+```
+
+
+```{r}
+posGene <- read.table(paste0(wd,"//input//crispick_pos_ctrl.txt"))
+colnames(posGene) <- "SNP"
+
+validCtrl <- read.xlsx(paste0(wd, "//input//validated_pos_ctrl.xlsx"))
+```
+
+Will use guidees from pos_a30 only.
+First remove any guides that overlap the validated guides.
+
+```{r}
+gValid <- GRanges(seqnames = validCtrl$chr, 
+                     ranges = IRanges(start = validCtrl$start, end=validCtrl$end))
+
+gCrisp <- GRanges(seqnames = posA30$chr, 
+                     ranges = IRanges(start = posA30$start, end=posA30$end))
+
+gOverlap <- findOverlaps(gValid, gCrisp, ignore.strand=TRUE)
+
+region_overlap <- as.data.frame(gOverlap) # ~ 12 guides overlap the validated guides
+
+```
+
+Remove overlapping guides
+```{r}
+# remove <- region_overlap[region_overlap$queryHits==top$n,2] 
+posPool <- posA30[!posA30$n %in% region_overlap[,2],]
+```
+
+
+
+
+```{r}
+
+gCrisp <- GRanges(seqnames = posA30$chr, 
+                     ranges = IRanges(start = posA30$start, end=posA30$end)) # forgot to add chr, start and stop
+
+gOverlap <- findOverlaps(gCrisp, ignore.strand=TRUE)
+
+region_overlap <- as.data.frame(gOverlap) # 212 out of 222 guides overlap the 200bp region
+# none of the new CRISPick guides overlap with the validated guides.
+
+topPos <- pickTopGDO(3, posA30, posGene, region_overlap)
+```
+
+Export the top guides. Go in order of pick order, fill in where we don't have validated guides.
+Will combine the lists manually since there's not too many guides.
+Need to manually pick+evaluate RPA1/SMYD4 guides since the region is overlapping..
+```{r}
+write.xlsx(topPos, file = paste0(wd, "//output//pos_ctrl_v1.xlsx"))
+```
 
 
 # Misc
