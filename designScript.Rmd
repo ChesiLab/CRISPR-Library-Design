@@ -14,17 +14,13 @@ library(GenomicRanges)
 ```
 
 ```{r}
-source('libraryDesignFunctions.R')
-source('crispickPreprocess.R')
+source('LibraryDesignFunctions.R')
+source('CrispickPreprocessFunctions.R')
 ```
 
 
 # Input Parameters + Load Data
 ```{r}
-# Set Parameters
-snp_region_length = 200
-num_top_guides = 3
-
 # Import Relevant Datasets
 wd <- getwd()
 wd # verify directory location
@@ -44,46 +40,10 @@ names(refseq_lookup)[names(refseq_lookup)=="RefSeq.seq.accession"] <- "refseq"
 # Preprocess Input for CRISPick
 ## Combine Nearby SNP Regions
 ```{r}
-# set half length parameter
-half_len = snp_region_length/2-1
+regions <- findSnpRegions(200, snp_list)
 
-# Create SNP "regions". +/- 1/2 the total region width.
-snp_region <- snp_list %>%
-  mutate(start = pos-half_len,
-         end = pos+half_len)
+# any(is.na(g_overlap@to)) # << Check for lost SNPs. Should be FALSE
 
-# Use GenomicRanges to find region overlaps. Create GRanges objects to use it.
-g_region <- GRanges(seqnames = snp_region$chr,
-                  ranges = IRanges(start = snp_region$start, end=snp_region$end))
-
-g_snps <- GRanges(seqnames = snp_region$chr,
-                  ranges = IRanges(start=snp_region$pos, end=snp_region$pos),
-                  SNP = snp_region$snp)
-
-# Merge overlapping SNP regions
-g_region <- reduce(g_region)
-
-# Map SNPs back to merged regions.
-g_overlap <- findOverlaps(g_region, g_snps)
-
-any(is.na(g_overlap@to)) # << Check for lost SNPs. Should be FALSE
-
-# Convert regions from GRanges object to dataframe
-regions <- as.data.frame(g_region) 
-regions$SNP <- NA
-names(regions)[names(regions)=="seqnames"] <- "chr"
-
-# Convert snps from GRanges object to dataframe
-snps <- as.data.frame(g_snps)
-
-# Map SNPs to their regions.
-for(i in 1:nrow(regions)){
-  # i = 5
-  reg_idx <- which(g_overlap@from==i) #get index for region
-  snp_idx <- g_overlap@to[reg_idx] # map to index for SNP
-  
-  regions[i, "SNP"] <- paste0(snps$SNP[snp_idx],collapse="|")
-}
 ```
 ## Convert to CRISPick Format
 ```{r}
