@@ -37,7 +37,11 @@ names(refseqLookup)[names(refseqLookup)=="Chromosome.name"] <- "chr"
 names(refseqLookup)[names(refseqLookup)=="RefSeq.seq.accession"] <- "refseq"
 ```
 # Preprocess Input for CRISPick
+
 ## Combine Nearby SNP Regions
+
+Will use 200bp regions for most SNPs. The 300 and 400bp regions are for any
+200bp regions that don't have enough good quality guides.
 ```{r}
 regions200 <- findSnpRegions(200, snp_list)
 regions300 <- findSnpRegions(300, snp_list)
@@ -59,14 +63,14 @@ crispick400Input <- crispick400 %>% select(crispick)
 ## Export SNP Regions as regions and as CRISPick Input Format
 ```{r}
 # Save SNP regions
-write.xlsx(regions, file = paste0(wd, "//input//regions_400bp.xlsx"))
-write.xlsx(regions, file = paste0(wd, "//input//regions_400bp.xlsx"))
-write.xlsx(regions, file = paste0(wd, "//input//regions_400bp.xlsx"))
+write.xlsx(regions200, file = paste0(wd, "//preprocessed//regions200.xlsx"))
+write.xlsx(regions300, file = paste0(wd, "//preprocessed//regions300.xlsx"))
+write.xlsx(regions400, file = paste0(wd, "//preprocessed//regions400.xlsx"))
 
 # Save CRISPick Inputs
-write.table(crispick200Input, "loc200.fasta", row.names=FALSE, col.names=FALSE, quote=FALSE)
-write.table(crispick300Input, "loc200.fasta", row.names=FALSE, col.names=FALSE, quote=FALSE)
-write.table(crispick400Input, "loc200.fasta", row.names=FALSE, col.names=FALSE, quote=FALSE)
+write.table(crispick200Input, paste0(wd, "//preprocessed//loc200.fasta"), row.names=FALSE, col.names=FALSE, quote=FALSE)
+write.table(crispick300Input, paste0(wd, "//preprocessed//loc300.fasta"), row.names=FALSE, col.names=FALSE, quote=FALSE)
+write.table(crispick400Input, paste0(wd, "//preprocessed//loc400.fasta"), row.names=FALSE, col.names=FALSE, quote=FALSE)
 ```
 
 PAUSE HERE >> run CRISPick using fasta file.
