@@ -2,14 +2,15 @@
 
 # Description: Contains functions for designScript.Rmd
 # findSnpRegions()
+
 # pickTopGDO()
 # put description here...
 
 # Function wishlist
 # Check for overlaps + output dataframe w/ indices
-
 # Guide preprocessing + add guide coords
 
+# source('LibraryDesignFunctions.R')
 
 # -----------------------------------------------------------------------------
 # Generate Regions
@@ -76,6 +77,50 @@ formatCrispick <- function(regions, refseqLookup){
     mutate(crispick = paste0(refseq,":+:",start,"-",end))
   
   return(crispickInput)
+}
+
+# -----------------------------------------------------------------------------
+# filterGDO()
+# Removes guides with bad (<0.25 or >0.75) GC content
+# Removes guides that have TTTT+ sequence. (RNA poly termination seq)
+# Removes guides that have poor predicted On-Target Efficiency (<0.2 Score)
+# Filter parameters for GC and TTTT content are from FlashFry.
+
+filterGDO <- function(GDO){
+  # Add GC_percent and polyT column to evaluate each guide
+  GDO <- GDO %>%
+    mutate(GC_percent = (str_count(GDO$sgRNA.Sequence,"G")+str_count(GDO$sgRNA.Sequence,"C"))/20,
+           polyT = str_count(GDO$sgRNA.Sequence,"TTTT")) # TTT shows up, so this seems to work.
+  
+  # Remove guides that don't meet filter criteria.
+  GDO <- GDO %>%
+    subset((GC_percent>=0.25) & (GC_percent<=0.75) & (polyT < 1) & (`On-Target.Efficacy.Score` > 0.2)) #filtered ~40 guides of 2000; for 200bp_i30 w/ efficacy filter, went from ~1.7k to 700 guides.
+  
+  # Renumber the rows after removal of bad guides.
+  rownames(GDO) = NULL
+  
+  return(GDO)
+}
+# -----------------------------------------------------------------------------
+# addGDOLoc()
+# Adds the chromosome number and the start and end coordinates for each guide.
+
+addGDOLoc <- function(GDO, refseqLookup){
+  # Add GDO chromosome number.
+  GDO <- left_join(GDO, refseqLookup, join_by("Reference.Sequence"=="refseq"))
+  
+  # Add GDO start and end coordinate.
+  GDO <- GDO %>%
+    mutate(
+      start = case_when(
+        Orientation == "sense" ~ `sgRNA.'Cut'.Position`-17,
+        Orientation == "antisense" ~ `sgRNA.'Cut'.Position`-3),
+      end = case_when(
+        Orientation == "sense" ~ `sgRNA.'Cut'.Position`+2,
+        Orientation == "antisense" ~ `sgRNA.'Cut'.Position`+16)
+    )
+  
+  return(GDO)
 }
 
 # -----------------------------------------------------------------------------

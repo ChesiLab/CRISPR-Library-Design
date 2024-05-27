@@ -28,14 +28,18 @@ snp_list <- unique(read.xlsx(paste0(wd,"//input//snp_loc_hg19.xlsx")))
 rownames(snp_list) <- NULL
 snp_list$chr <- as.character(snp_list$chr)
 
+
 # Get refseq conversion for chromosome numbers. Needed for compatibility with CRISPick
 refseqLookup <- read.delim(paste0(wd,"//input//seq_report_hg19.tsv"))
-refseqLookup <- subset(refseq_lookup, Role=="assembled-molecule")
+refseqLookup <- subset(refseqLookup, Role=="assembled-molecule")
 
 # Rename columns for convenience
 names(refseqLookup)[names(refseqLookup)=="Chromosome.name"] <- "chr"
 names(refseqLookup)[names(refseqLookup)=="RefSeq.seq.accession"] <- "refseq"
+refseqLookup <- refseqLookup %>%
+  select(chr, refseq)
 ```
+
 # Preprocess Input for CRISPick
 
 ## Combine Nearby SNP Regions
@@ -55,6 +59,7 @@ crispick200 <- formatCrispick(regions200, refseqLookup)
 crispick300 <- formatCrispick(regions300, refseqLookup)
 crispick400 <- formatCrispick(regions400, refseqLookup)
 
+# Only need the 'crispick' column to run CRISPick for library design.
 crispick200Input <- crispick200 %>% select(crispick)
 crispick300Input <- crispick300 %>% select(crispick)
 crispick400Input <- crispick400 %>% select(crispick)
@@ -80,70 +85,55 @@ PAUSE HERE >> run CRISPick using fasta file.
 # Create Library from CRISPick Output
 ## Import CRISPick Output
 ```{r}
-guides <- read.xlsx(paste0(wd,"//200bp_i30//sgrna-designs.xlsx"))
+GDO200 <- read.xlsx(paste0(wd,"//crispick_output//sgrna_designs_200bp_i30.xlsx"))
+GDO300 <- read.xlsx(paste0(wd,"//crispick_output//sgrna_designs_300bp_i30.xlsx"))
+GDO400 <- read.xlsx(paste0(wd,"//crispick_output//sgrna_designs_400bp_i30.xlsx"))
 
-#Remove some extraneous columns
+keepCol <- c("Input", "Reference.Sequence", "Orientation", "sgRNA.'Cut'.Position", 
+            "sgRNA.Sequence", "sgRNA.Context.Sequence", "On-Target.Efficacy.Score", "Pick.Order")
+
+GDO200 <- select(GDO200, all_of(keepCol))
+GDO300 <- select(GDO300, all_of(keepCol))
+GDO400 <- select(GDO400, all_of(keepCol))
+
+# Alternative column selection:
 # guides <- guides %>%
 #   subset(select = -c(Quota, Target.Taxon, Target.Gene.ID, Target.Gene.Symbol, Target.Alias, 
 #                      CRISPR.Mechanism, Target.Domain, TSS.Position, PAM.Policy))
-
-# For debugging
-guides <- guides %>%
-  select( c(Input, Reference.Sequence, Orientation, `sgRNA.'Cut'.Position`, 
-            sgRNA.Sequence, sgRNA.Context.Sequence, `On-Target.Efficacy.Score`, Pick.Order) )
 
 ```
 
 ## GC + TTTT filter
 Good GC content, no poly T, On-Target Efficacy > 0.2
+Renumbers the rows after removing guides that don't meet the filter criteria.
 ```{r}
-guides <- guides %>%
-  mutate(GC_percent = (str_count(guides$sgRNA.Sequence,"G")+str_count(guides$sgRNA.Sequence,"C"))/20,
-         polyT = str_count(guides$sgRNA.Sequence,"TTTT")) # TTT shows up, so this seems to work.
-
-guides <- guides %>%
-  subset((GC_percent>=0.25) & (GC_percent<=0.75) & (polyT < 1) & (`On-Target.Efficacy.Score` > 0.2)) #filtered ~40 guides of 2000; for 200bp_i30 w/ efficacy filter, went from ~1.7k to 700 guides.
-
-rownames(guides) = NULL
+GDO200 <- filterGDO(GDO200)
+GDO300 <- filterGDO(GDO300)
+GDO400 <- filterGDO(GDO400)
 ```
 
 ## Add guide coordinates
 ```{r}
-# Add chromosome number based on refseq lookup table
-lookup <- refseq_lookup %>%
-  select(chr, refseq)
+source('LibraryDesignFunctions.R')
 
-guides <- left_join(guides, lookup, join_by("Reference.Sequence"=="refseq"))
-
-# Placeholder columns for start and end..
-guides$start <- NA
-guides$end <- NA
-
-
-# probably could do mutate() for this..
-for (i in 1:nrow(guides)){
-  # if the guide is sense vs antisense
-  if (guides$Orientation[i]=="sense"){
-    guides$start[i] = guides$`sgRNA.'Cut'.Position`[i] - 17
-    guides$end[i] = guides$`sgRNA.'Cut'.Position`[i] + 2
-    
-  } else if (guides$Orientation[i]=="antisense"){
-    guides$start[i] = guides$`sgRNA.'Cut'.Position`[i] - 3
-    guides$end[i] = guides$`sgRNA.'Cut'.Position`[i] + 16
-    
-  }
-}
+# Add GDO locations: chromosome number + start/end coordinates.
+GDO200 <- addGDOLoc(GDO200, refseqLookup)
+GDO300 <- addGDOLoc(GDO300, refseqLookup)
+GDO400 <- addGDOLoc(GDO400, refseqLookup)
 
 # Add the SNP Region
-guides <- left_join(guides, select(crispick_reg, SNP, crispick), join_by("Input"=="crispick"))
-
-all(guides$start < guides$end) # CHECK that coordinate order is correct. TRUE if okay.
+GDO200 <- left_join(guides, select(crispick200, SNP, crispick), join_by("Input"=="crispick"))
+GDO300 <- left_join(guides, select(crispick300, SNP, crispick), join_by("Input"=="crispick"))
+GDO400 <- left_join(guides, select(crispick400, SNP, crispick), join_by("Input"=="crispick"))
 
 # Add rownumber for reference later
-guides$n <- as.numeric(rownames(guides))
+GDO200$n <- as.numeric(rownames(GDO200))
+GDO300$n <- as.numeric(rownames(GDO300))
+GDO400$n <- as.numeric(rownames(GDO400))
 
-
-all(guides$n == as.numeric(rownames(guides))) #CHECK that n == rownumber. TRUE if okay.
+# Debug
+# all(GDO200$start < GDO200$end) # CHECK that coordinate order is correct. TRUE if okay.
+# all(guides$n == as.numeric(rownames(guides))) #CHECK that n == rownumber. TRUE if okay.
 
 ```
 
