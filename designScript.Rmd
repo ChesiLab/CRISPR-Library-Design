@@ -114,8 +114,6 @@ GDO400 <- filterGDO(GDO400)
 
 ## Add guide coordinates
 ```{r}
-source('LibraryDesignFunctions.R')
-
 # Add GDO locations: chromosome number + start/end coordinates.
 GDO200 <- addGDOLoc(GDO200, refseqLookup)
 GDO300 <- addGDOLoc(GDO300, refseqLookup)
@@ -137,23 +135,23 @@ GDO400$n <- as.numeric(rownames(GDO400))
 
 ```
 
-## Remove Overlapping Guides
+## Get top non-overlapping guides.
+
 Get indices of overlapping guides.
 ```{r}
-g_guides <- GRanges(seqnames = guides$chr,
-                    ranges = IRanges(start = guides$start, end=guides$end))
-
-g_GDO_overlap <- findOverlaps(g_guides, ignore.strand=TRUE) #drop.self=TRUE, 
-
-GDO_overlap <- as.data.frame(g_GDO_overlap)
+GDO200Overlap <- findGDOSelfOverlap(GDO200, "chr", "start", "end")
+GDO300Overlap <- findGDOSelfOverlap(GDO300, "chr", "start", "end")
+GDO400Overlap <- findGDOSelfOverlap(GDO400, "chr", "start", "end")
 ```
 
-Get top
+Get top guides.
 ```{r}
-# Input: guides, num_top_guides, regions, GDO_overlap
+# Pick the top performing guides for each SNP region width.
+# Here we pick the top 5. Could pick top 3 etc.
 
-topGDO <- pickTopGDO(5, guides, regions, GDO_overlap)
-
+topGDO200 <- pickTopGDO(5, GDO200, regions200, GDO200Overlap)
+topGDO300 <- pickTopGDO(5, GDO300, regions300, GDO300Overlap)
+topGDO400 <- pickTopGDO(5, GDO400, regions400, GDO400Overlap)
 ```
 
 # QC

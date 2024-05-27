@@ -101,6 +101,7 @@ filterGDO <- function(GDO){
   
   return(GDO)
 }
+
 # -----------------------------------------------------------------------------
 # addGDOLoc()
 # Adds the chromosome number and the start and end coordinates for each guide.
@@ -121,6 +122,25 @@ addGDOLoc <- function(GDO, refseqLookup){
     )
   
   return(GDO)
+}
+
+# -----------------------------------------------------------------------------
+# findGDOSelfOverlap()
+# DEPENDS on GenomicRanges package.
+# Finds which guides overlap. Outputs dataframe with indices of overlapping guides.
+
+findGDOSelfOverlap <- function(GDO, chrCol, startCol, endCol, strandBool=TRUE, selfBool=FALSE){
+  # Create GRanges object
+  gGuides <- GRanges(seqnames = GDO[[chrCol]],
+                      ranges = IRanges(start = GDO[[startCol]], end=GDO[[endCol]]))
+  
+  # Find guides that are overlapping.
+  gOverlap <- findOverlaps(gGuides, ignore.strand=strandBool, drop.self = selfBool) 
+  
+  # Convert from GRanges object to dataframe.
+  overlap <- as.data.frame(gOverlap)
+  
+  return(overlap)
 }
 
 # -----------------------------------------------------------------------------
