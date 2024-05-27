@@ -120,9 +120,9 @@ GDO300 <- addGDOLoc(GDO300, refseqLookup)
 GDO400 <- addGDOLoc(GDO400, refseqLookup)
 
 # Add the SNP Region
-GDO200 <- left_join(guides, select(crispick200, SNP, crispick), join_by("Input"=="crispick"))
-GDO300 <- left_join(guides, select(crispick300, SNP, crispick), join_by("Input"=="crispick"))
-GDO400 <- left_join(guides, select(crispick400, SNP, crispick), join_by("Input"=="crispick"))
+GDO200 <- left_join(GDO200, select(crispick200, SNP, crispick), join_by("Input"=="crispick"))
+GDO300 <- left_join(GDO300, select(crispick300, SNP, crispick), join_by("Input"=="crispick"))
+GDO400 <- left_join(GDO400, select(crispick400, SNP, crispick), join_by("Input"=="crispick"))
 
 # Add rownumber for reference later
 GDO200$n <- as.numeric(rownames(GDO200))
@@ -148,21 +148,43 @@ Get top guides.
 ```{r}
 # Pick the top performing guides for each SNP region width.
 # Here we pick the top 5. Could pick top 3 etc.
+numGDO <- 3
 
-topGDO200 <- pickTopGDO(5, GDO200, regions200, GDO200Overlap)
-topGDO300 <- pickTopGDO(5, GDO300, regions300, GDO300Overlap)
-topGDO400 <- pickTopGDO(5, GDO400, regions400, GDO400Overlap)
+topGDO200 <- pickTopGDO(numGDO, GDO200, regions200, GDO200Overlap)
+topGDO300 <- pickTopGDO(numGDO, GDO300, regions300, GDO300Overlap)
+topGDO400 <- pickTopGDO(numGDO, GDO400, regions400, GDO400Overlap)
 ```
+
+Export list of top guides.
+```{r}
+write.xlsx(topGDO200, file = paste0(wd, "//output//top3_200bp_i30.xlsx"))
+write.xlsx(topGDO300, file = paste0(wd, "//output//top3_300bp_i30.xlsx"))
+write.xlsx(topGDO400, file = paste0(wd, "//output//top3_400bp_i30.xlsx"))
+```
+
 
 # QC
 How is the on-target score?
 ```{r}
-mean(table(top_guides$SNP))
-hist(table(top_guides$SNP))
+print("Mean Number of Guides per SNP")
+print(paste("GDO200:", mean(table(topGDO200$SNP))))
+print(paste("GDO300:", mean(table(topGDO300$SNP))))
+print(paste("GDO400:", mean(table(topGDO400$SNP))))
 
-mean(top_guides$`On-Target.Efficacy.Score`)
-hist(top_guides$`On-Target.Efficacy.Score`)
+print("Mean On-Target Efficacy Score for the Library")
+print(paste("GDO200:", mean(topGDO200$`On-Target.Efficacy.Score`)))
+print(paste("GDO300:", mean(topGDO300$`On-Target.Efficacy.Score`)))
+print(paste("GDO400:", mean(topGDO400$`On-Target.Efficacy.Score`)))
 
+hist(table(topGDO200$SNP))
+hist(table(topGDO300$SNP))
+hist(table(topGDO400$SNP))
+
+hist(topGDO200$`On-Target.Efficacy.Score`)
+hist(topGDO300$`On-Target.Efficacy.Score`)
+hist(topGDO400$`On-Target.Efficacy.Score`)
+
+# On-Target Efficacy by SNP Region
 # guide_summary <- top_guides %>%
 #   group_by(SNP) %>%
 #   summarise(mean = mean(`On-Target.Efficacy.Score`))
