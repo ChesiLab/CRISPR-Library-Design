@@ -11,9 +11,7 @@ pacman::p_load(openxlsx, dplyr, reshape2, stringr)
 
 # BiocManager::install("GenomicRanges")
 library(GenomicRanges)
-```
 
-```{r}
 source('libraryDesignFunctions.R')
 ```
 
@@ -52,6 +50,7 @@ regions400 <- findSnpRegions(400, snp_list)
 
 # any(is.na(g_overlap@to)) # << DEBUG: Check for lost SNPs. Should be FALSE
 ```
+
 ## Convert to CRISPick Input Format
 ```{r}
 crispick200 <- formatCrispick(regions200, refseqLookup)
@@ -138,9 +137,9 @@ GDO400$n <- as.numeric(rownames(GDO400))
 
 Get indices of overlapping guides.
 ```{r}
-GDO200Overlap <- findGDOSelfOverlap(GDO200, "chr", "start", "end")
-GDO300Overlap <- findGDOSelfOverlap(GDO300, "chr", "start", "end")
-GDO400Overlap <- findGDOSelfOverlap(GDO400, "chr", "start", "end")
+GDO200Overlap <- findSelfOverlap(GDO200, "chr", "start", "end")
+GDO300Overlap <- findSelfOverlap(GDO300, "chr", "start", "end")
+GDO400Overlap <- findSelfOverlap(GDO400, "chr", "start", "end")
 ```
 
 Get top guides.
@@ -224,13 +223,13 @@ numGDO <- 3
 # before adding the combined region, to accommodate.
 
 # Get any regions that are missing or do not have enough guides
-badRegion <- getBadRegion(finalGDO, regions, numGDO) # 3 bad regions
+badRegion <- getBadRegion(finalGDO, regions, numGDO) # 8 bad regions
 
 if(nrow(badRegion)>0){
   finalGDO <- replaceBadRegion(finalGDO, GDO300, regions, badRegion)
 }
 
-badRegion <- getBadRegion(finalGDO, regions, numGDO) # 2 bad regions
+badRegion <- getBadRegion(finalGDO, regions, numGDO) # 4 bad regions
 
 if(nrow(badRegion)>0){
   finalGDO <- replaceBadRegion(finalGDO, GDO400, regions, badRegion)
@@ -248,7 +247,7 @@ all(finalGDO$SNP %in% regions$SNP)
 !any(is.na(finalGDO$SNP))
 
 # Check for no overlaps between GUIDES in the library
-finalGDOOverlap <- findGDOSelfOverlap(finalGDO, "chr","start","end",selfBool = TRUE)
+finalGDOOverlap <- findSelfOverlap(finalGDO, "chr","start","end",selfBool = TRUE)
 
 # Check that each guide overlaps with only ONE REGION
 
@@ -297,7 +296,6 @@ refseqLookup <- refseqLookup %>%
 
 ```{r}
 # Add chromosome number based on refseq lookup table
-posA30 <- left_join(posA30, refseqLookup, join_by("Reference.Sequence"=="refseq"))
 posA30 <- addGDOLoc(posA30, refseqLookup)
 
 # Use Input as the "SNP" region
