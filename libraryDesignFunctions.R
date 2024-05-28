@@ -125,19 +125,42 @@ addGDOLoc <- function(GDO, refseqLookup){
 }
 
 # -----------------------------------------------------------------------------
-# findGDOSelfOverlap()
+# findSelfOverlap()
 # DEPENDS on GenomicRanges package.
-# Finds which guides overlap. Outputs dataframe with indices of overlapping guides.
+# Finds which coords overlap. Outputs dataframe with indices of overlapping coords.
 
-findGDOSelfOverlap <- function(GDO, chrCol, startCol, endCol, strandBool=TRUE, selfBool=FALSE){
+findSelfOverlap <- function(regions, chrCol, startCol, endCol, strandBool=TRUE, selfBool=FALSE){
   # Create GRanges object
-  gGuides <- GRanges(seqnames = GDO[[chrCol]],
-                      ranges = IRanges(start = GDO[[startCol]], end=GDO[[endCol]]))
+  gGuides <- GRanges(seqnames = regions[[chrCol]],
+                      ranges = IRanges(start = regions[[startCol]], end=regions[[endCol]]))
   
   # Find guides that are overlapping.
   gOverlap <- findOverlaps(gGuides, ignore.strand=strandBool, drop.self = selfBool) 
   
   # Convert from GRanges object to dataframe.
+  overlap <- as.data.frame(gOverlap)
+  
+  return(overlap)
+}
+
+# -----------------------------------------------------------------------------
+# findOverlap()
+# DEPENDS on GenomicRanges package.
+# Similar to findSelfOverlap(), but compares two different lists of coords.
+
+findOverlap <- function(reg1, reg2, 
+                           chrCol1, startCol1, endCol1, 
+                           chrCol2, startCol2, endCol2, 
+                           strandBool=TRUE){
+  
+  gReg1 <- GRanges(seqnames = reg1[[chrCol1]],
+                     ranges = IRanges(start = reg1[[startCol1]], end=reg1[[endCol1]]))
+  
+  gReg2 <- GRanges(seqnames = reg2[[chrCol2]],
+                   ranges = IRanges(start = reg2[[startCol2]], end=reg2[[endCol2]]))
+  
+  gOverlap <- findOverlaps(gReg1, gReg2, ignore.strand=strandBool)
+  
   overlap <- as.data.frame(gOverlap)
   
   return(overlap)

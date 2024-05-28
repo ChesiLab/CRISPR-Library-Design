@@ -196,16 +196,18 @@ First ran guide search for 200bp, ran QC. Then ran 300bp and 400bp to get more g
 
 Load all GDOs + Regions if needed:
 ```{r}
-# # Load all guide pools
-# GDO200 <- read.xlsx(paste0(wd,"//output//top3_200bp_i30.xlsx"))
-# GDO300 <- read.xlsx(paste0(wd,"//output//top3_300bp_i30.xlsx"))
-# GDO400 <- read.xlsx(paste0(wd,"//output//top3_400bp_i30.xlsx"))
-# # note, less guides in 300bp & 400bp because the regions were combined. There are fewer regions.
-# 
-# # Load regions by width
-# regions200 <- read.xlsx(paste0(wd,"//preprocessed//regions200.xlsx"))
-# regions300 <- read.xlsx(paste0(wd,"//preprocessed//regions300.xlsx"))
-# regions400 <- read.xlsx(paste0(wd,"//preprocessed//regions400.xlsx"))
+wd <- getwd()
+
+# Load all guide pools
+GDO200 <- read.xlsx(paste0(wd,"//output//top3_200bp_i30.xlsx"))
+GDO300 <- read.xlsx(paste0(wd,"//output//top3_300bp_i30.xlsx"))
+GDO400 <- read.xlsx(paste0(wd,"//output//top3_400bp_i30.xlsx"))
+# note, less guides in 300bp & 400bp because the regions were combined. There are fewer regions.
+
+# Load regions by width
+regions200 <- read.xlsx(paste0(wd,"//preprocessed//regions200.xlsx"))
+regions300 <- read.xlsx(paste0(wd,"//preprocessed//regions300.xlsx"))
+regions400 <- read.xlsx(paste0(wd,"//preprocessed//regions400.xlsx"))
 ```
 
 Loading all guide searches:
@@ -214,6 +216,13 @@ Loading all guide searches:
 regions <- regions200
 finalGDO <- GDO200
 numGDO <- 3
+
+# NOTE/TODO:
+# The bad regions from our original pool (GDO200) are not part of any combined region
+# i.e. where 2+ SNPs were combined in the same region.
+# If the bad region names change from pool to pool,
+# you will need to UPDATE replaceBadRegion() to throw out the UNCOMBINED regions
+# before adding the combined region, to accommodate.
 
 # Get any regions that are missing or do not have enough guides
 badRegion <- getBadRegion(finalGDO, regions, numGDO) # 3 bad regions
@@ -236,40 +245,31 @@ Quality Control
 # Check that you have all the expected regions from the 200bp
   # i.e. you haven't LOST any regions and you haven't ADDED any regions by accident
 
-all(final_GDO$SNP %in% regions$SNP)
-!any(is.na(final_GDO$SNP))
-
+all(finalGDO$SNP %in% regions$SNP)
+!any(is.na(finalGDO$SNP))
 
 # Check for no overlaps between GUIDES in the library
-
-g_GDO <- GRanges(seqnames = final_GDO$chr,
-                    ranges = IRanges(start = final_GDO$start, end=final_GDO$end))
-
-g_overlap <- findOverlaps(g_GDO, ignore.strand=TRUE, drop.self=TRUE)
-
-GDO_overlap <- as.data.frame(g_overlap) # no overlaps detected
+finalGDOOverlap <- findGDOSelfOverlap(finalGDO, "chr","start","end",selfBool = TRUE)
 
 # Check that each guide overlaps with only ONE REGION
 
-regions <- regions_200
+reg200Overlap <- findOverlap(finalGDO, regions200,
+                          "chr", "start", "end",
+                          "chr", "start", "end")
+# 212 out of 222 guides overlap the 200bp region
 
-g_regions <- GRanges(seqnames = regions$chr, 
-                     ranges = IRanges(start = regions$start, end=regions$end))
-
-g_overlap <- findOverlaps(g_GDO, g_regions, ignore.strand=TRUE)
-
-region_overlap <- as.data.frame(g_overlap) # 212 out of 222 guides overlap the 200bp region
+reg400Overlap <- findOverlap(finalGDO, regions400,
+                          "chr", "start", "end",
+                          "chr", "start", "end")
+# All guides overlap a 400bp region.
 ```
 
 
 Export guide list:
 ```{r}
-# write.xlsx(final_GDO, file = paste0(wd, "//output//final_GDO_v1.xlsx"))
+# write.xlsx(finalGDO, file = paste0(wd, "//output//finalTargetGDO.xlsx"))
 
-GDO_output <- read.xlsx(paste0(wd,"//output//final_GDO_v1.xlsx"))
-
-# all(GDO_output$sgRNA.Sequence %in% final_GDO$sgRNA.Sequence)
-# all(final_GDO$sgRNA.Sequence %in% GDO_output$sgRNA.Sequence)
+# finalGDO <- read.xlsx(paste0(wd,"//output//finalTargetGDO.xlsx"))
 ```
 
 # Guide Library Updates
@@ -278,6 +278,8 @@ Add + Replace Positive Controls
 
 ## Load data
 ```{r}
+# source('LibraryDesignFunctions.R')
+
 wd <- getwd()
 
 # Import new guide designs
@@ -377,15 +379,5 @@ Will combine the lists manually since there's not too many guides.
 Need to manually pick+evaluate RPA1/SMYD4 guides since the region is overlapping..
 ```{r}
 write.xlsx(topPos, file = paste0(wd, "//output//pos_ctrl_v1.xlsx"))
-```
-
-
-# Misc
-Comparing CRISPRi vs CRISPRa for CRISPick
-```{r}
-# top_guides_i <- top_guides
-# top_guides_a <- top_guides
-
-top_diff <- anti_join(top_guides_i, top_guides_a, by="sgRNA.Sequence")
 ```
 
