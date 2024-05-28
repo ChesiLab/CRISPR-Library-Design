@@ -339,6 +339,6 @@ Export the top guides. Go in order of pick order, fill in where we don't have va
 Will combine the lists manually since there's not too many guides.
 Need to manually pick+evaluate RPA1/SMYD4 guides since the region is overlapping..
 ```{r}
-write.xlsx(topPos, file = paste0(wd, "//output//top3_promoter_i30.xlsx"))
+write.xlsx(topPos, file = paste0(wd, "//output//top3_promoter_a30.xlsx"))
 ```
 
