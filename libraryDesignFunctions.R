@@ -175,3 +175,39 @@ pickTopGDO <- function(numTopGDO, guidePool, regions, overlapGDO) {
   return(topGDO)
 }
 
+# -----------------------------------------------------------------------------
+# getBadRegion()
+# QC Checks: missing regions or not enough guides.
+# Creates list of regions that need a bigger guide pool.
+
+getBadRegion <- function(testPool, regions, numGDO){
+  reg <- data.frame(table(testPool$SNP)) %>% # Create dataframe that counts number of guides/SNP
+    setNames(c("SNP","Freq")) # Set column names.
+  
+  badRegion <- data.frame(SNP=character())
+  
+  badRegion <- bind_rows(badRegion, 
+                        anti_join(regions, reg, by = "SNP") %>%
+                          select(SNP)) # find missing regions
+  
+  badRegion <- bind_rows(badRegion, reg %>% 
+                          subset(Freq < numGDO) %>%
+                          select(SNP)) # find regions with not enough GDOs
+  
+  return(badRegion)
+}
+
+# -----------------------------------------------------------------------------
+# replaceBadRegion()
+
+replaceBadRegion <- function(badPool, biggerPool, allRegions, badRegions){
+  # Removes any guides that are in the "bad regions" from the original pool
+  combinedGDO <- subset(badPool, !(SNP %in% badRegions$SNP))
+  
+  # For bad regions, adds guides from the expanded guide pool.
+  combinedGDO <- bind_rows(combinedGDO, 
+                         subset(biggerPool, SNP %in% badRegions$SNP))
+  
+  return(combinedGDO)
+}
+

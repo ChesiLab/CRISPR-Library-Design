@@ -191,110 +191,48 @@ hist(topGDO400$`On-Target.Efficacy.Score`)
 # 
 # subset(guide_summary, mean < 0.2)
 ```
-How many/which regions don't have enough guides?
-```{r}
-# Check for any regions that dropped out completely
-reg <- data.frame(table(top_guides$SNP))
-names(reg) <- c("SNP", "Freq")
-missing_reg <- anti_join(regions, reg, by="SNP")
-
-missing <- data.frame(SNP = missing_reg$SNP, Freq = 0)
-
-low_reg <- subset(reg, Freq < 3)
-
-test <- dplyr::union(low_reg, missing) # 10 regions dont' have enough guides
-```
-
-# Export guides
-```{r}
-write.xlsx(guides, file = paste0(wd, "//output//guides_400bp_i30_0.2.xlsx"))
-
-write.xlsx(top_guides, file = paste0(wd, "//output//top3guides_400bp_i30_0.2.xlsx"))
-```
-
 # Combining Guide Searches
 First ran guide search for 200bp, ran QC. Then ran 300bp and 400bp to get more guides for poorly performing regions.
 
+Load all GDOs + Regions if needed:
+```{r}
+# # Load all guide pools
+# GDO200 <- read.xlsx(paste0(wd,"//output//top3_200bp_i30.xlsx"))
+# GDO300 <- read.xlsx(paste0(wd,"//output//top3_300bp_i30.xlsx"))
+# GDO400 <- read.xlsx(paste0(wd,"//output//top3_400bp_i30.xlsx"))
+# # note, less guides in 300bp & 400bp because the regions were combined. There are fewer regions.
+# 
+# # Load regions by width
+# regions200 <- read.xlsx(paste0(wd,"//preprocessed//regions200.xlsx"))
+# regions300 <- read.xlsx(paste0(wd,"//preprocessed//regions300.xlsx"))
+# regions400 <- read.xlsx(paste0(wd,"//preprocessed//regions400.xlsx"))
+```
+
 Loading all guide searches:
 ```{r}
-# Load all guide pools
-GDO_200bp <- read.xlsx(paste0(wd,"//output//top3guides_200bp_i30_0.2.xlsx"))
-GDO_300bp <- read.xlsx(paste0(wd,"//output//top3guides_300bp_i30_0.2.xlsx"))
-GDO_400bp <- read.xlsx(paste0(wd,"//output//top3guides_400bp_i30_0.2.xlsx"))
-# note, less guides in 300bp+400bp because the regions were combined. There are fewer regions.
-
-# Load regions by width
-regions_200 <- read.xlsx(paste0(wd,"//input//regions_200bp.xlsx"))
-regions_300 <- read.xlsx(paste0(wd,"//input//regions_300bp.xlsx"))
-regions_400 <- read.xlsx(paste0(wd,"//input//regions_400bp.xlsx"))
-
 # Initialize final library
-regions <- regions_200
-final_GDO <- GDO_200bp
+regions <- regions200
+finalGDO <- GDO200
+numGDO <- 3
 
-# ----------------------------------------------------------------
+# Get any regions that are missing or do not have enough guides
+badRegion <- getBadRegion(finalGDO, regions, numGDO) # 3 bad regions
 
-# QC Checks: missing regions, few guides, or low score.
-# Creates list of regions that need a bigger guide pool.
+if(nrow(badRegion)>0){
+  finalGDO <- replaceBadRegion(finalGDO, GDO300, regions, badRegion)
+}
 
-reg <- data.frame(table(final_GDO$SNP)) %>% # Create dataframe that counts number of guides/SNP
-  setNames(c("SNP","Freq")) # Set column names.
+badRegion <- getBadRegion(finalGDO, regions, numGDO) # 2 bad regions
 
-poor_reg <- data.frame(SNP=character())
+if(nrow(badRegion)>0){
+  finalGDO <- replaceBadRegion(finalGDO, GDO400, regions, badRegion)
+}
 
-poor_reg <- bind_rows(poor_reg, 
-                  anti_join(regions, reg, by = "SNP") %>%
-                    select(SNP))
+badRegion <- getBadRegion(finalGDO, regions, numGDO) # no bad regions
+```
 
-poor_reg <- bind_rows(poor_reg, reg %>% 
-                        subset(Freq < 3) %>%
-                        select(SNP))
-
-# Removed Efficacy < 0.2 in Preprocessing
-
-# poor_reg <- bind_rows(poor_reg,
-#   group_by(final_GDO, SNP) %>%
-#   summarise(mean = mean(`On-Target.Efficacy.Score`)) %>%
-#   subset(mean < 0.2) %>%
-#   select(SNP))
-
-# ------------------------------------------------------------------
-# Get guides from 300bp pool for bad regions
-
-final_GDO <- subset(final_GDO, !(SNP %in% poor_reg$SNP))
-final_GDO <- bind_rows(final_GDO, 
-                   subset(GDO_300bp, SNP %in% poor_reg$SNP))
-
-# --------------------------------------------------------------------
-
-# Update list of regions that need more/better guides
-
-reg <- data.frame(table(final_GDO$SNP)) %>% # Create dataframe that counts number of guides/SNP
-  setNames(c("SNP","Freq")) # Set column names.
-
-poor_reg <- data.frame(SNP=character())
-
-poor_reg <- bind_rows(poor_reg, 
-                  anti_join(regions, reg, by = "SNP") %>%
-                    select(SNP))
-
-poor_reg <- bind_rows(poor_reg, reg %>% 
-                        subset(Freq < 3) %>%
-                        select(SNP))
-
-
-# --------------------------------------------------------------------
-# Update bad regions w/ guides from the 400bp search. Matches by SNP region.
-
-final_GDO <- subset(final_GDO, !(SNP %in% poor_reg$SNP))
-final_GDO <- bind_rows(final_GDO, 
-                   subset(GDO_400bp, SNP %in% poor_reg$SNP))
-
-
-# --------------------------------------------------------------------
-
-# QUALITY CONTROL
-
+Quality Control
+```{r}
 # Check that you have all the expected regions from the 200bp
   # i.e. you haven't LOST any regions and you haven't ADDED any regions by accident
 
@@ -321,9 +259,8 @@ g_regions <- GRanges(seqnames = regions$chr,
 g_overlap <- findOverlaps(g_GDO, g_regions, ignore.strand=TRUE)
 
 region_overlap <- as.data.frame(g_overlap) # 212 out of 222 guides overlap the 200bp region
-
-
 ```
+
 
 Export guide list:
 ```{r}
