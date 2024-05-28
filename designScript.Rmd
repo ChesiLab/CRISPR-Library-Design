@@ -14,9 +14,8 @@ library(GenomicRanges)
 ```
 
 ```{r}
-source('LibraryDesignFunctions.R')
+source('libraryDesignFunctions.R')
 ```
-
 
 # Input Parameters + Load Data
 ```{r}
@@ -51,7 +50,7 @@ regions200 <- findSnpRegions(200, snp_list)
 regions300 <- findSnpRegions(300, snp_list)
 regions400 <- findSnpRegions(400, snp_list)
 
-# any(is.na(g_overlap@to)) # << Check for lost SNPs. Should be FALSE
+# any(is.na(g_overlap@to)) # << DEBUG: Check for lost SNPs. Should be FALSE
 ```
 ## Convert to CRISPick Input Format
 ```{r}
@@ -147,7 +146,7 @@ GDO400Overlap <- findGDOSelfOverlap(GDO400, "chr", "start", "end")
 Get top guides.
 ```{r}
 # Pick the top performing guides for each SNP region width.
-# Here we pick the top 5. Could pick top 3 etc.
+# Here we pick the top 3. Could pick top 5 etc.
 numGDO <- 3
 
 topGDO200 <- pickTopGDO(numGDO, GDO200, regions200, GDO200Overlap)
@@ -264,27 +263,36 @@ reg400Overlap <- findOverlap(finalGDO, regions400,
 # All guides overlap a 400bp region.
 ```
 
-
 Export guide list:
 ```{r}
-# write.xlsx(finalGDO, file = paste0(wd, "//output//finalTargetGDOi30.xlsx"))
+write.xlsx(finalGDO, file = paste0(wd, "//output//finalTargetGDOi30.xlsx"))
 
 # finalGDO <- read.xlsx(paste0(wd,"//output//finalTargetGDOi30.xlsx"))
 ```
 
-# Guide Library Updates
+# Updating Positive Controls
+We submitted a list of interesting genes to CRISPick to design promoter targeting control guides.
+Next, we want to:
+1) Remove any designed guides that overlap with our validated guides.
+2) Of the remaining pool, pick the best performing guides. (i.e. top 3 or top 5)
 
-Add + Replace Positive Controls
-
-## Load data
+## Load Data
 ```{r}
-# source('LibraryDesignFunctions.R')
-
 wd <- getwd()
 
 # Import new guide designs
 posA30 <- read.xlsx(paste0(wd,"//crispick_output//sgrna_designs_promoter_a30.xlsx"))
 names(posA30)[names(posA30)=="Target.Gene.Symbol"] <- "SNP"
+
+# Get refseq conversion for chromosome numbers. Needed for compatibility with CRISPick
+refseqLookup <- read.delim(paste0(wd,"//input//seq_report_hg19.tsv"))
+refseqLookup <- subset(refseqLookup, Role=="assembled-molecule")
+
+# Rename columns for convenience
+names(refseqLookup)[names(refseqLookup)=="Chromosome.name"] <- "chr"
+names(refseqLookup)[names(refseqLookup)=="RefSeq.seq.accession"] <- "refseq"
+refseqLookup <- refseqLookup %>%
+  select(chr, refseq)
 ```
 
 ```{r}
@@ -304,7 +312,6 @@ posA30$n <- as.numeric(rownames(posA30))
 all(posA30$n == as.numeric(rownames(posA30))) #CHECK that n == rownumber. TRUE if okay.
 ```
 
-
 ```{r}
 posGene <- read.table(paste0(wd,"//input//crispick_pos_ctrl.txt"))
 colnames(posGene) <- "SNP"
@@ -312,7 +319,6 @@ colnames(posGene) <- "SNP"
 validCtrl <- read.xlsx(paste0(wd, "//input//validated_pos_ctrl.xlsx"))
 ```
 
-Will use guidees from pos_a30 only.
 First remove any guides that overlap the validated guides.
 
 ```{r}
