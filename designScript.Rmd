@@ -53,27 +53,27 @@ regions400 <- findSnpRegions(400, snp_list)
 
 ## Convert to CRISPick Input Format
 ```{r}
-crispick200 <- formatCrispick(regions200, refseqLookup)
-crispick300 <- formatCrispick(regions300, refseqLookup)
-crispick400 <- formatCrispick(regions400, refseqLookup)
+regions200 <- formatCrispick(regions200, refseqLookup)
+regions300 <- formatCrispick(regions300, refseqLookup)
+regions400 <- formatCrispick(regions400, refseqLookup)
 
 # Only need the 'crispick' column to run CRISPick for library design.
-crispick200Input <- crispick200 %>% select(crispick)
-crispick300Input <- crispick300 %>% select(crispick)
-crispick400Input <- crispick400 %>% select(crispick)
+crispick200Input <- regions200 %>% select(crispick)
+crispick300Input <- regions300 %>% select(crispick)
+crispick400Input <- regions400 %>% select(crispick)
 ```
 
 ## Export SNP Regions as regions and as CRISPick Input Format
 ```{r}
-# Save SNP regions
-write.xlsx(regions200, file = paste0(wd, "//preprocessed//regions200.xlsx"))
-write.xlsx(regions300, file = paste0(wd, "//preprocessed//regions300.xlsx"))
-write.xlsx(regions400, file = paste0(wd, "//preprocessed//regions400.xlsx"))
-
-# Save CRISPick Inputs
-write.table(crispick200Input, paste0(wd, "//preprocessed//loc200.fasta"), row.names=FALSE, col.names=FALSE, quote=FALSE)
-write.table(crispick300Input, paste0(wd, "//preprocessed//loc300.fasta"), row.names=FALSE, col.names=FALSE, quote=FALSE)
-write.table(crispick400Input, paste0(wd, "//preprocessed//loc400.fasta"), row.names=FALSE, col.names=FALSE, quote=FALSE)
+# # Save SNP regions
+# write.xlsx(regions200, file = paste0(wd, "//preprocessed//regions200.xlsx"))
+# write.xlsx(regions300, file = paste0(wd, "//preprocessed//regions300.xlsx"))
+# write.xlsx(regions400, file = paste0(wd, "//preprocessed//regions400.xlsx"))
+# 
+# # Save CRISPick Inputs
+# write.table(crispick200Input, paste0(wd, "//preprocessed//loc200.fasta"), row.names=FALSE, col.names=FALSE, quote=FALSE)
+# write.table(crispick300Input, paste0(wd, "//preprocessed//loc300.fasta"), row.names=FALSE, col.names=FALSE, quote=FALSE)
+# write.table(crispick400Input, paste0(wd, "//preprocessed//loc400.fasta"), row.names=FALSE, col.names=FALSE, quote=FALSE)
 ```
 
 PAUSE HERE >> run CRISPick using fasta file.
@@ -118,9 +118,9 @@ GDO300 <- addGDOLoc(GDO300, refseqLookup)
 GDO400 <- addGDOLoc(GDO400, refseqLookup)
 
 # Add the SNP Region
-GDO200 <- left_join(GDO200, select(crispick200, SNP, crispick), join_by("Input"=="crispick"))
-GDO300 <- left_join(GDO300, select(crispick300, SNP, crispick), join_by("Input"=="crispick"))
-GDO400 <- left_join(GDO400, select(crispick400, SNP, crispick), join_by("Input"=="crispick"))
+GDO200 <- left_join(GDO200, select(regions200, SNP, crispick), join_by("Input"=="crispick"))
+GDO300 <- left_join(GDO300, select(regions300, SNP, crispick), join_by("Input"=="crispick"))
+GDO400 <- left_join(GDO400, select(regions400, SNP, crispick), join_by("Input"=="crispick"))
 
 # Add rownumber for reference later
 GDO200$n <- as.numeric(rownames(GDO200))
