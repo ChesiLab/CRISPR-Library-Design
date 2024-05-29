@@ -1,0 +1,151 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+if(!require('pacman')) {install.packages('pacman')}
+pacman::p_load(openxlsx, dplyr, reshape2, stringr)
+
+# BiocManager::install("GenomicRanges")
+library(GenomicRanges)
+
+source('../libraryDesignFunctions.R')
+```
+
+# Load preprocessed GDO lists... i.e. after filtering + relevant variables added
+
+```{r}
+setwd('..')
+wd <- getwd()
+
+GDO200 <- read.xlsx(paste0(wd,"//output//200bp_i30.xlsx"))
+GDO300 <- read.xlsx(paste0(wd,"//output//300bp_i30.xlsx"))
+GDO400 <- read.xlsx(paste0(wd,"//output//400bp_i30.xlsx"))
+
+regions200 <- read.xlsx(paste0(wd, "//preprocessed//regions200.xlsx"))
+regions300 <- read.xlsx(paste0(wd, "//preprocessed//regions300.xlsx"))
+regions400 <- read.xlsx(paste0(wd, "//preprocessed//regions400.xlsx"))
+
+```
+
+
+# Adding Overlap Leniency
+Since the subject AND query guide are getting truncated, the total maximum overlap is
+going to be double our coordinate adjustment.
+
+L1 -> +/- 1 from each end; 10% of guide
+L2 -> +/- 2 from each end; 20% of guide 
+L3 -> +/- 3 from each end; 30% of guide 
+L4 -> +/- 4 from each end; 40% of guide 
+L5 -> +/- 5 from each end; 50% of guide 
+
+```{r}
+GDO200L1 <- GDO200 %>% mutate(startL = start+1, endL = end-1)
+GDO200L2 <- GDO200 %>% mutate(startL = start+2, endL = end-2)
+GDO200L3 <- GDO200 %>% mutate(startL = start+3, endL = end-3)
+GDO200L4 <- GDO200 %>% mutate(startL = start+4, endL = end-4)
+GDO200L5 <- GDO200 %>% mutate(startL = start+5, endL = end-5)
+
+GDO300L1 <- GDO300 %>% mutate(startL = start+1, endL = end-1)
+GDO300L2 <- GDO300 %>% mutate(startL = start+2, endL = end-2)
+GDO300L3 <- GDO300 %>% mutate(startL = start+3, endL = end-3)
+GDO300L4 <- GDO300 %>% mutate(startL = start+4, endL = end-4)
+GDO300L5 <- GDO300 %>% mutate(startL = start+5, endL = end-5)
+
+GDO400L1 <- GDO400 %>% mutate(startL = start+1, endL = end-1)
+GDO400L2 <- GDO400 %>% mutate(startL = start+2, endL = end-2)
+GDO400L3 <- GDO400 %>% mutate(startL = start+3, endL = end-3)
+GDO400L4 <- GDO400 %>% mutate(startL = start+4, endL = end-4)
+GDO400L5 <- GDO400 %>% mutate(startL = start+5, endL = end-5)
+```
+
+
+Get indices of overlapping guides.
+```{r}
+GDO200L1Overlap <- findSelfOverlap(GDO200L1, "chr", "startL", "endL")
+GDO200L2Overlap <- findSelfOverlap(GDO200L2, "chr", "startL", "endL")
+GDO200L3Overlap <- findSelfOverlap(GDO200L3, "chr", "startL", "endL")
+GDO200L4Overlap <- findSelfOverlap(GDO200L4, "chr", "startL", "endL")
+GDO200L5Overlap <- findSelfOverlap(GDO200L5, "chr", "startL", "endL")
+
+GDO300L1Overlap <- findSelfOverlap(GDO300L1, "chr", "startL", "endL")
+GDO300L2Overlap <- findSelfOverlap(GDO300L2, "chr", "startL", "endL")
+GDO300L3Overlap <- findSelfOverlap(GDO300L3, "chr", "startL", "endL")
+GDO300L4Overlap <- findSelfOverlap(GDO300L4, "chr", "startL", "endL")
+GDO300L5Overlap <- findSelfOverlap(GDO300L5, "chr", "startL", "endL")
+
+GDO400L1Overlap <- findSelfOverlap(GDO400L1, "chr", "startL", "endL")
+GDO400L2Overlap <- findSelfOverlap(GDO400L2, "chr", "startL", "endL")
+GDO400L3Overlap <- findSelfOverlap(GDO400L3, "chr", "startL", "endL")
+GDO400L4Overlap <- findSelfOverlap(GDO400L4, "chr", "startL", "endL")
+GDO400L5Overlap <- findSelfOverlap(GDO400L5, "chr", "startL", "endL")
+```
+
+Get top guides.
+```{r}
+# Pick the top performing guides for each SNP region width.
+# Here we pick the top 3. Could pick top 5 etc.
+numGDO <- 3
+
+topGDO200L1 <- pickTopGDO(numGDO, GDO200L1, regions200, GDO200L1Overlap)
+topGDO200L2 <- pickTopGDO(numGDO, GDO200L2, regions200, GDO200L2Overlap)
+topGDO200L3 <- pickTopGDO(numGDO, GDO200L3, regions200, GDO200L3Overlap)
+topGDO200L4 <- pickTopGDO(numGDO, GDO200L4, regions200, GDO200L4Overlap)
+topGDO200L5 <- pickTopGDO(numGDO, GDO200L5, regions200, GDO200L5Overlap)
+
+topGDO300L1 <- pickTopGDO(numGDO, GDO300L1, regions300, GDO300L1Overlap)
+topGDO300L2 <- pickTopGDO(numGDO, GDO300L2, regions300, GDO300L2Overlap)
+topGDO300L3 <- pickTopGDO(numGDO, GDO300L3, regions300, GDO300L3Overlap)
+topGDO300L4 <- pickTopGDO(numGDO, GDO300L4, regions300, GDO300L4Overlap)
+topGDO300L5 <- pickTopGDO(numGDO, GDO300L5, regions300, GDO300L5Overlap)
+
+topGDO400L1 <- pickTopGDO(numGDO, GDO400L1, regions400, GDO400L1Overlap)
+topGDO400L2 <- pickTopGDO(numGDO, GDO400L2, regions400, GDO400L2Overlap)
+topGDO400L3 <- pickTopGDO(numGDO, GDO400L3, regions400, GDO400L3Overlap)
+topGDO400L4 <- pickTopGDO(numGDO, GDO400L4, regions400, GDO400L4Overlap)
+topGDO400L5 <- pickTopGDO(numGDO, GDO400L5, regions400, GDO400L5Overlap)
+```
+
+# QC how do the different libraries compare?
+
+```{r, fig.width=2, fig.height=3}
+test <- list(
+  topGDO200L1 = topGDO200L1, 
+  topGDO200L2 = topGDO200L2, 
+  topGDO200L3 = topGDO200L3,
+  topGDO200L4 = topGDO200L4, 
+  topGDO200L5 = topGDO200L5,
+  
+  topGDO300L1 = topGDO300L1,
+  topGDO300L2 = topGDO300L2,
+  topGDO300L3 = topGDO300L3,
+  topGDO300L4 = topGDO300L4,
+  topGDO300L5 = topGDO300L5,
+  
+  topGDO400L1 = topGDO400L1,
+  topGDO400L2 = topGDO400L2,
+  topGDO400L3 = topGDO400L3,
+  topGDO400L4 = topGDO400L4,
+  topGDO400L5 = topGDO400L5)
+
+for (name in names(test)){
+  gdo <- test[[name]]
+  print(paste(name, ":", mean(gdo$`On-Target.Efficacy.Score`)))
+}
+
+for (name in names(test)){
+  gdo <- test[[name]]
+  hist(table(gdo$SNP), main=paste(name), xlab="Guides per SNP")
+  hist(gdo$`On-Target.Efficacy.Score`, main=paste(name), xlab="On-Target Score")
+}
+
+```
+
+
+
+
