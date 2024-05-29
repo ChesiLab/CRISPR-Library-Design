@@ -68,9 +68,9 @@ formatCrispick <- function(regions, refseqLookup){
   lookup <- refseqLookup %>%
     select(chr, refseq)
   
-  crispickInput <- select(regions, chr, start, end, SNP)
+  # crispickInput <- select(regions, chr, start, end, SNP)
   
-  crispickInput <- left_join(crispickInput, lookup, by="chr")
+  crispickInput <- left_join(regions, lookup, by="chr")
   
   # Add range for CRISPick
   crispickInput <- crispickInput %>%

@@ -36,6 +36,12 @@ names(refseqLookup)[names(refseqLookup)=="RefSeq.seq.accession"] <- "refseq"
 refseqLookup <- refseqLookup %>%
   select(chr, refseq)
 ```
+```{r}
+# Save refseqLookup
+write.xlsx(refseqLookup, file = paste0(wd, "//input//refseqLookup.xlsx"))
+```
+
+
 
 # Preprocess Input for CRISPick
 
@@ -65,15 +71,15 @@ crispick400Input <- regions400 %>% select(crispick)
 
 ## Export SNP Regions as regions and as CRISPick Input Format
 ```{r}
-# # Save SNP regions
-# write.xlsx(regions200, file = paste0(wd, "//preprocessed//regions200.xlsx"))
-# write.xlsx(regions300, file = paste0(wd, "//preprocessed//regions300.xlsx"))
-# write.xlsx(regions400, file = paste0(wd, "//preprocessed//regions400.xlsx"))
-# 
-# # Save CRISPick Inputs
-# write.table(crispick200Input, paste0(wd, "//preprocessed//loc200.fasta"), row.names=FALSE, col.names=FALSE, quote=FALSE)
-# write.table(crispick300Input, paste0(wd, "//preprocessed//loc300.fasta"), row.names=FALSE, col.names=FALSE, quote=FALSE)
-# write.table(crispick400Input, paste0(wd, "//preprocessed//loc400.fasta"), row.names=FALSE, col.names=FALSE, quote=FALSE)
+# Save SNP regions
+write.xlsx(regions200, file = paste0(wd, "//preprocessed//regions200.xlsx"))
+write.xlsx(regions300, file = paste0(wd, "//preprocessed//regions300.xlsx"))
+write.xlsx(regions400, file = paste0(wd, "//preprocessed//regions400.xlsx"))
+
+# Save CRISPick Inputs
+write.table(crispick200Input, paste0(wd, "//preprocessed//loc200.fasta"), row.names=FALSE, col.names=FALSE, quote=FALSE)
+write.table(crispick300Input, paste0(wd, "//preprocessed//loc300.fasta"), row.names=FALSE, col.names=FALSE, quote=FALSE)
+write.table(crispick400Input, paste0(wd, "//preprocessed//loc400.fasta"), row.names=FALSE, col.names=FALSE, quote=FALSE)
 ```
 
 PAUSE HERE >> run CRISPick using fasta file.
@@ -153,11 +159,15 @@ topGDO300 <- pickTopGDO(numGDO, GDO300, regions300, GDO300Overlap)
 topGDO400 <- pickTopGDO(numGDO, GDO400, regions400, GDO400Overlap)
 ```
 
-Export list of top guides.
+Export list of top guides and all guides.
 ```{r}
 write.xlsx(topGDO200, file = paste0(wd, "//output//top3_200bp_i30.xlsx"))
 write.xlsx(topGDO300, file = paste0(wd, "//output//top3_300bp_i30.xlsx"))
 write.xlsx(topGDO400, file = paste0(wd, "//output//top3_400bp_i30.xlsx"))
+
+write.xlsx(GDO200, file = paste0(wd, "//output//200bp_i30.xlsx"))
+write.xlsx(GDO300, file = paste0(wd, "//output//300bp_i30.xlsx"))
+write.xlsx(GDO400, file = paste0(wd, "//output//400bp_i30.xlsx"))
 ```
 
 
