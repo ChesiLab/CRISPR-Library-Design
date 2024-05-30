@@ -199,6 +199,99 @@ pickTopGDO <- function(numTopGDO, guidePool, regions, overlapGDO) {
 }
 
 # -----------------------------------------------------------------------------
+# pickTopGDObyStrand()
+# todo: refactor/functionalize to simplify logic.
+
+# numTopGDO = 5
+# guidePool = GDO200
+# regions = regions200
+# overlapGDO = GDO200Overlap
+
+pickTopGDObyStrand <- function(numTopGDO, guidePool, regions, overlapGDO){
+  topGDO <- guidePool[0,]
+  
+  for (i in 1:nrow(regions)){ #nrow(regions)
+    # i = 1
+    for (j in 1:numTopGDO) {
+      # j = 5
+      # Check if there is more than one guide left in the pool for the given region.
+      if (length(subset(guidePool, SNP==regions$SNP[i]))>0){
+        
+        # If less than half of the guides have been picked, orientation doesn't matter:
+        if(nrow(subset(topGDO, SNP==regions$SNP[i])) < (numTopGDO/2)){
+          
+          top <- guidePool %>%
+            subset(SNP==regions$SNP[i]) %>%
+            arrange(Pick.Order) %>%
+            dplyr::slice(1)
+          
+          # get the top pick (based on Pick Order), add this to top_guides.
+          # then remove all guides that are overlapping with the top pick.
+          topGDO <- bind_rows(topGDO, top)
+          
+          # gets indices of guides that overlap the current top pick
+          remove <- overlapGDO[overlapGDO$queryHits==top$n,2] 
+          
+          # Removes guides that overlap the top hit from the remaining guide pool.
+          guidePool <- guidePool[!guidePool$n %in% remove,] 
+          
+          # If more than half of the guides have been picked, orientation could matter:
+        } else {
+          numOrientation <- table(topGDO$Orientation)
+          
+          # If more than half of guides are antisense:
+          if (numOrientation["antisense"] > (numTopGDO/2)){
+            # subset for remaining guides that are antisense
+            # then pick top guide
+            if (length(subset(guidePool, SNP==regions$SNP[i] & Orientation == "sense")>0)){
+              top <- guidePool %>%
+                subset(SNP==regions$SNP[i] & Orientation=="sense") %>%
+                arrange(Pick.Order) %>%
+                dplyr::slice(1)
+              
+              topGDO <- bind_rows(topGDO, top)
+              remove <- overlapGDO[overlapGDO$queryHits==top$n,2] 
+              guidePool <- guidePool[!guidePool$n %in% remove,]
+            }
+            
+            # If more than half of guides are sense:
+          } else if (numOrientation["sense"] > (numTopGDO/2)){
+            # subset for remaining guides that are sense
+            # then pick top guide
+            if (length(subset(guidePool, SNP==regions$SNP[i] & Orientation == "antisense")>0)){
+              top <- guidePool %>%
+                subset(SNP==regions$SNP[i] & Orientation=="antisense") %>%
+                arrange(Pick.Order) %>%
+                dplyr::slice(1)
+              
+              topGDO <- bind_rows(topGDO, top)
+              remove <- overlapGDO[overlapGDO$queryHits==top$n,2] 
+              guidePool <- guidePool[!guidePool$n %in% remove,]
+            }
+            
+            # If there aren't too many guides of either orientation:
+          } else {
+            # use full pool of remaining guides,
+            # pick top guide like normal
+            top <- guidePool %>%
+              subset(SNP==regions$SNP[i]) %>%
+              arrange(Pick.Order) %>%
+              dplyr::slice(1)
+            
+            topGDO <- bind_rows(topGDO, top)
+            remove <- overlapGDO[overlapGDO$queryHits==top$n,2]
+            guidePool <- guidePool[!guidePool$n %in% remove,]
+          } 
+          
+        } #end if/else for guidepool > numTopGDO/2
+      } #end if guidePool$region[i] > 0
+    } #end for (j in 1:numTopGDO)
+  }# end for (i in 1:nrow(regions))
+  
+  return(topGDO)
+}
+
+# -----------------------------------------------------------------------------
 # getBadRegion()
 # QC Checks: missing regions or not enough guides.
 # Creates list of regions that need a bigger guide pool.

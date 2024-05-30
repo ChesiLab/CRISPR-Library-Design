@@ -15,7 +15,7 @@ library(GenomicRanges)
 source('libraryDesignFunctions.R')
 ```
 
-# Input Parameters + Load Data
+# Load Data
 ```{r}
 # Import Relevant Datasets
 wd <- getwd()
@@ -24,21 +24,25 @@ wd # verify directory location
 snp_list <- unique(read.xlsx(paste0(wd,"//input//snp_loc_hg19.xlsx")))
 rownames(snp_list) <- NULL
 snp_list$chr <- as.character(snp_list$chr)
-
-
-# Get refseq conversion for chromosome numbers. Needed for compatibility with CRISPick
-refseqLookup <- read.delim(paste0(wd,"//input//seq_report_hg19.tsv"))
-refseqLookup <- subset(refseqLookup, Role=="assembled-molecule")
-
-# Rename columns for convenience
-names(refseqLookup)[names(refseqLookup)=="Chromosome.name"] <- "chr"
-names(refseqLookup)[names(refseqLookup)=="RefSeq.seq.accession"] <- "refseq"
-refseqLookup <- refseqLookup %>%
-  select(chr, refseq)
 ```
 ```{r}
-# Save refseqLookup
-write.xlsx(refseqLookup, file = paste0(wd, "//input//refseqLookup.xlsx"))
+# # Get refseq conversion for chromosome numbers. Needed for compatibility with CRISPick
+# refseqLookup <- read.delim(paste0(wd,"//input//seq_report_hg19.tsv"))
+# refseqLookup <- subset(refseqLookup, Role=="assembled-molecule")
+# 
+# # Rename columns for convenience
+# names(refseqLookup)[names(refseqLookup)=="Chromosome.name"] <- "chr"
+# names(refseqLookup)[names(refseqLookup)=="RefSeq.seq.accession"] <- "refseq"
+# refseqLookup <- refseqLookup %>%
+#   select(chr, refseq)
+
+# -----------------------------------------------------------------------------
+
+# Save or Load refseqLookup
+
+# write.xlsx(refseqLookup, file = paste0(wd, "//input//refseqLookup.xlsx"))
+
+refseqLookup <- read.xlsx(paste0(wd, "//input//refseqLookup.xlsx"))
 ```
 
 
@@ -152,11 +156,16 @@ Get top guides.
 ```{r}
 # Pick the top performing guides for each SNP region width.
 # Here we pick the top 3. Could pick top 5 etc.
-numGDO <- 3
+numGDO <- 5
 
-topGDO200 <- pickTopGDO(numGDO, GDO200, regions200, GDO200Overlap)
-topGDO300 <- pickTopGDO(numGDO, GDO300, regions300, GDO300Overlap)
-topGDO400 <- pickTopGDO(numGDO, GDO400, regions400, GDO400Overlap)
+topGDO200 <- pickTopGDObyStrand(numGDO, GDO200, regions200, GDO200Overlap)
+topGDO300 <- pickTopGDObyStrand(numGDO, GDO300, regions300, GDO300Overlap)
+topGDO400 <- pickTopGDObyStrand(numGDO, GDO400, regions400, GDO400Overlap)
+
+## Picking guides but without filtering for strand representation.
+# topGDO200 <- pickTopGDO(numGDO, GDO200, regions200, GDO200Overlap)
+# topGDO300 <- pickTopGDO(numGDO, GDO300, regions300, GDO300Overlap)
+# topGDO400 <- pickTopGDO(numGDO, GDO400, regions400, GDO400Overlap)
 ```
 
 Export list of top guides and all guides.
@@ -223,7 +232,7 @@ Loading all guide searches:
 # Initialize final library
 regions <- regions200
 finalGDO <- GDO200
-numGDO <- 3
+numGDO <- 5
 
 # NOTE/TODO:
 # The bad regions from our original pool (GDO200) are not part of any combined region
@@ -246,6 +255,8 @@ if(nrow(badRegion)>0){
 }
 
 badRegion <- getBadRegion(finalGDO, regions, numGDO) # no bad regions
+
+test <- subset(finalGDO, SNP %in% badRegion$SNP)
 ```
 
 Quality Control
