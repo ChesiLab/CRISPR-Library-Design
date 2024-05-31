@@ -13,26 +13,29 @@ pacman::p_load(openxlsx, dplyr, reshape2, stringr)
 library(GenomicRanges)
 
 source('libraryDesignFunctions.R')
-source('preprocessCRISPick.R')
-source('preprocessGDO.R')
-```
-
-```{r}
-
-preprocessCRISPick() # Prefer to convert to standalone script...
-
-# PAUSE HERE >> run CRISPick using fasta files.
-
-preprocessGDO()
-
 ```
 
 -------------------------------------------------------------------------------
+# Load GDO Pool and Region Information
+```{r}
+wd <- getwd()
+wd
+
+regions200 <- read.xlsx(paste0(wd,"//preprocessed//regions200.xlsx"))
+regions300 <- read.xlsx(paste0(wd,"//preprocessed//regions300.xlsx"))
+regions400 <- read.xlsx(paste0(wd,"//preprocessed//regions400.xlsx"))
+
+GDO200 <- read.xlsx(paste0(wd,"//preprocessed//200bp_i30.xlsx"))
+GDO300 <- read.xlsx(paste0(wd,"//preprocessed//300bp_i30.xlsx"))
+GDO400 <- read.xlsx(paste0(wd,"//preprocessed//400bp_i30.xlsx"))
+
+```
+
 # Get top guides
 
 ## Get top non-overlapping guides.
-
 Get indices of overlapping guides.
+
 ```{r}
 GDO200Overlap <- findSelfOverlap(GDO200, "chr", "start", "end")
 GDO300Overlap <- findSelfOverlap(GDO300, "chr", "start", "end")

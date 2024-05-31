@@ -1,0 +1,78 @@
+---
+title: "preprocessGDO"
+author: Shannon Laub
+output: html_notebook
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+if(!require('pacman')) {install.packages('pacman')}
+pacman::p_load(openxlsx, dplyr, reshape2, stringr)
+
+# BiocManager::install("GenomicRanges")
+library(GenomicRanges)
+
+# Import helper functions.
+source('libraryDesignFunctions.R')
+```
+
+```{r}
+wd <- getwd()
+
+# Import refseq vs chromosome number lookup.
+refseqLookup <- read.xlsx(paste0(wd, "//input//refseqLookup.xlsx"))
+
+# Import SNP-to-region annotations.
+regions200 <- read.xlsx(paste0(wd,"//preprocessed//regions200.xlsx"))
+regions300 <- read.xlsx(paste0(wd,"//preprocessed//regions300.xlsx"))
+regions400 <- read.xlsx(paste0(wd,"//preprocessed//regions400.xlsx"))
+regions500 <- read.xlsx(paste0(wd,"//preprocessed//regions500.xlsx"))
+regions600 <- read.xlsx(paste0(wd,"//preprocessed//regions600.xlsx"))
+
+# Indicate columns of interest.
+keepCol <- c("Input", "Reference.Sequence", "Orientation", "sgRNA.'Cut'.Position", 
+             "sgRNA.Sequence", "sgRNA.Context.Sequence", "On-Target.Efficacy.Score", "Pick.Order")
+
+# Get filenames of CRISPick outputs.
+setwd(paste0(wd,'\\crispick_output'))
+file_list <- list.files(pattern= "^sgrna_cre.*\\.xlsx$")
+```
+
+```{r}
+# Loop through all files from CRISPick output.
+for (file in file_list){
+  # Import CRISPick Output
+  GDOraw <- read.xlsx(paste0(wd,"//crispick_output//",file))
+  
+  # Keep important columns.
+  GDOout <- select(GDOraw, all_of(keepCol))
+  
+  # Filter GC %, TTTT, On-Target Efficacy > 0.2
+  GDOout <- filterGDO(GDOout)
+  
+  # Add GDO Locations: chromosome # + start/end coordinates.
+  GDOout <- addGDOLoc(GDOout, refseqLookup)
+  
+  # Add the SNP region.
+  if (grepl("200", file)){
+    GDOout <- left_join(GDOout, select(regions200, SNP, crispick), join_by("Input"=="crispick"))
+  } else if (grepl("300", file)){
+    GDOout <- left_join(GDOout, select(regions300, SNP, crispick), join_by("Input"=="crispick"))
+  } else if (grepl("400", file)){
+    GDOout <- left_join(GDOout, select(regions400, SNP, crispick), join_by("Input"=="crispick"))
+  } else if (grepl("500", file)){
+    GDOout <- left_join(GDOout, select(regions500, SNP, crispick), join_by("Input"=="crispick"))
+  } else if (grepl("600", file)){
+    GDOout <- left_join(GDOout, select(regions600, SNP, crispick), join_by("Input"=="crispick"))
+  }
+  
+  # Add rownumber for reference later.
+  GDOout$n <- as.numeric(rownames(GDOout))
+  
+  # Export preprocessed GDO pools.
+  # Filename is substring of CRISPick output file name:
+  # i.e. output "600bp_i50.xlsx" as derived from "sgrna_cre_600bp_i50.xlsx"
+  write.xlsx(GDOout, file = paste0(wd, "//preprocessed//", sub("^sgrna_cre_(.*)$", "\\1", file)))
+}
+```
