@@ -13,135 +13,22 @@ pacman::p_load(openxlsx, dplyr, reshape2, stringr)
 library(GenomicRanges)
 
 source('libraryDesignFunctions.R')
+source('preprocessCRISPick.R')
+source('preprocessGDO.R')
 ```
 
-# Load Data
 ```{r}
-# Import Relevant Datasets
-wd <- getwd()
-wd # verify directory location
 
-snp_list <- unique(read.xlsx(paste0(wd,"//input//snp_loc_hg19.xlsx")))
-rownames(snp_list) <- NULL
-snp_list$chr <- as.character(snp_list$chr)
-```
-```{r}
-# # Get refseq conversion for chromosome numbers. Needed for compatibility with CRISPick
-# refseqLookup <- read.delim(paste0(wd,"//input//seq_report_hg19.tsv"))
-# refseqLookup <- subset(refseqLookup, Role=="assembled-molecule")
-# 
-# # Rename columns for convenience
-# names(refseqLookup)[names(refseqLookup)=="Chromosome.name"] <- "chr"
-# names(refseqLookup)[names(refseqLookup)=="RefSeq.seq.accession"] <- "refseq"
-# refseqLookup <- refseqLookup %>%
-#   select(chr, refseq)
+preprocessCRISPick() # Prefer to convert to standalone script...
 
-# -----------------------------------------------------------------------------
+# PAUSE HERE >> run CRISPick using fasta files.
 
-# Save or Load refseqLookup
-
-# write.xlsx(refseqLookup, file = paste0(wd, "//input//refseqLookup.xlsx"))
-
-refseqLookup <- read.xlsx(paste0(wd, "//input//refseqLookup.xlsx"))
-```
-
-
-
-# Preprocess Input for CRISPick
-
-## Combine Nearby SNP Regions
-
-Will use 200bp regions for most SNPs. The 300 and 400bp regions are for any
-200bp regions that don't have enough good quality guides.
-```{r}
-regions200 <- findSnpRegions(200, snp_list)
-regions300 <- findSnpRegions(300, snp_list)
-regions400 <- findSnpRegions(400, snp_list)
-
-# any(is.na(g_overlap@to)) # << DEBUG: Check for lost SNPs. Should be FALSE
-```
-
-## Convert to CRISPick Input Format
-```{r}
-regions200 <- formatCrispick(regions200, refseqLookup)
-regions300 <- formatCrispick(regions300, refseqLookup)
-regions400 <- formatCrispick(regions400, refseqLookup)
-
-# Only need the 'crispick' column to run CRISPick for library design.
-crispick200Input <- regions200 %>% select(crispick)
-crispick300Input <- regions300 %>% select(crispick)
-crispick400Input <- regions400 %>% select(crispick)
-```
-
-## Export SNP Regions as regions and as CRISPick Input Format
-```{r}
-# Save SNP regions
-write.xlsx(regions200, file = paste0(wd, "//preprocessed//regions200.xlsx"))
-write.xlsx(regions300, file = paste0(wd, "//preprocessed//regions300.xlsx"))
-write.xlsx(regions400, file = paste0(wd, "//preprocessed//regions400.xlsx"))
-
-# Save CRISPick Inputs
-write.table(crispick200Input, paste0(wd, "//preprocessed//loc200.fasta"), row.names=FALSE, col.names=FALSE, quote=FALSE)
-write.table(crispick300Input, paste0(wd, "//preprocessed//loc300.fasta"), row.names=FALSE, col.names=FALSE, quote=FALSE)
-write.table(crispick400Input, paste0(wd, "//preprocessed//loc400.fasta"), row.names=FALSE, col.names=FALSE, quote=FALSE)
-```
-
-PAUSE HERE >> run CRISPick using fasta file.
-
-----------------------------------------------------------------------------
-
-# Create Library from CRISPick Output
-## Import CRISPick Output
-```{r}
-GDO200 <- read.xlsx(paste0(wd,"//crispick_output//sgrna_designs_200bp_i30.xlsx"))
-GDO300 <- read.xlsx(paste0(wd,"//crispick_output//sgrna_designs_300bp_i30.xlsx"))
-GDO400 <- read.xlsx(paste0(wd,"//crispick_output//sgrna_designs_400bp_i30.xlsx"))
-
-keepCol <- c("Input", "Reference.Sequence", "Orientation", "sgRNA.'Cut'.Position", 
-            "sgRNA.Sequence", "sgRNA.Context.Sequence", "On-Target.Efficacy.Score", "Pick.Order")
-
-GDO200 <- select(GDO200, all_of(keepCol))
-GDO300 <- select(GDO300, all_of(keepCol))
-GDO400 <- select(GDO400, all_of(keepCol))
-
-# Alternative column selection:
-# guides <- guides %>%
-#   subset(select = -c(Quota, Target.Taxon, Target.Gene.ID, Target.Gene.Symbol, Target.Alias, 
-#                      CRISPR.Mechanism, Target.Domain, TSS.Position, PAM.Policy))
+preprocessGDO()
 
 ```
 
-## GC + TTTT filter
-Good GC content, no poly T, On-Target Efficacy > 0.2
-Renumbers the rows after removing guides that don't meet the filter criteria.
-```{r}
-GDO200 <- filterGDO(GDO200)
-GDO300 <- filterGDO(GDO300)
-GDO400 <- filterGDO(GDO400)
-```
-
-## Add guide coordinates
-```{r}
-# Add GDO locations: chromosome number + start/end coordinates.
-GDO200 <- addGDOLoc(GDO200, refseqLookup)
-GDO300 <- addGDOLoc(GDO300, refseqLookup)
-GDO400 <- addGDOLoc(GDO400, refseqLookup)
-
-# Add the SNP Region
-GDO200 <- left_join(GDO200, select(regions200, SNP, crispick), join_by("Input"=="crispick"))
-GDO300 <- left_join(GDO300, select(regions300, SNP, crispick), join_by("Input"=="crispick"))
-GDO400 <- left_join(GDO400, select(regions400, SNP, crispick), join_by("Input"=="crispick"))
-
-# Add rownumber for reference later
-GDO200$n <- as.numeric(rownames(GDO200))
-GDO300$n <- as.numeric(rownames(GDO300))
-GDO400$n <- as.numeric(rownames(GDO400))
-
-# Debug
-# all(GDO200$start < GDO200$end) # CHECK that coordinate order is correct. TRUE if okay.
-# all(guides$n == as.numeric(rownames(guides))) #CHECK that n == rownumber. TRUE if okay.
-
-```
+-------------------------------------------------------------------------------
+# Get top guides
 
 ## Get top non-overlapping guides.
 
