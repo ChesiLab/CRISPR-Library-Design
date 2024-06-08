@@ -81,20 +81,33 @@ formatCrispick <- function(regions, refseqLookup){
 
 # -----------------------------------------------------------------------------
 # filterGDO()
+
+# Default options:
 # Removes guides with bad (<0.25 or >0.75) GC content
 # Removes guides that have TTTT+ sequence. (RNA poly termination seq)
-# Removes guides that have poor predicted On-Target Efficiency (<0.2 Score)
+# Does not remove guides with poor On-Target Efficacy. (Suggested: remove <0.2 score)
 # Filter parameters for GC and TTTT content are from FlashFry.
 
-filterGDO <- function(GDO){
+filterGDO <- function(GDO, GCbool = TRUE, Tbool = TRUE, minOnScore = -1000){
   # Add GC_percent and polyT column to evaluate each guide
   GDO <- GDO %>%
     mutate(GC_percent = (str_count(GDO$sgRNA.Sequence,"G")+str_count(GDO$sgRNA.Sequence,"C"))/20,
            polyT = str_count(GDO$sgRNA.Sequence,"TTTT")) # TTT shows up, so this seems to work.
   
   # Remove guides that don't meet filter criteria.
+  if (GCbool == TRUE){
+    GDO <- GDO %>%
+      subset((GC_percent>=0.25) & (GC_percent<=0.75))
+  }
+  
+  if (Tbool == TRUE){
+    GDO <- GDO %>%
+      subset(polyT < 1)
+  }
+  
+  # Note that minOnScore can be < 0
   GDO <- GDO %>%
-    subset((GC_percent>=0.25) & (GC_percent<=0.75) & (polyT < 1) & (`On-Target.Efficacy.Score` > 0.2)) #filtered ~40 guides of 2000; for 200bp_i30 w/ efficacy filter, went from ~1.7k to 700 guides.
+    subset((`On-Target.Efficacy.Score` > minOnScore)) #filtered ~40 guides of 2000; for 200bp_i30 w/ efficacy filter, went from ~1.7k to 700 guides.
   
   # Renumber the rows after removal of bad guides.
   rownames(GDO) = NULL
