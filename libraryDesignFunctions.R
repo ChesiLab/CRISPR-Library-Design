@@ -340,3 +340,35 @@ replaceBadRegion <- function(badPool, biggerPool, allRegions, badRegions){
   return(combinedGDO)
 }
 
+# -----------------------------------------------------------------------------
+# calcDistGDOtoSNP()
+# Dependency: GenomicRanges, dplyr
+# Calculates the distance from each GDO to its nearest SNP.
+# Check that all GDOs are near something.
+# For SNP list, expects snp, chr, and pos columns.
+# For GDO list, expects chr, start, end, and SNP, sgRNA.Sequence columns.
+calcDistGDOtoSNP <- function(SNP, GDO){
+  gSNP <- GRanges(
+    seqnames = SNP$chr,
+    ranges = IRanges(start = SNP$pos, end = SNP$pos)
+  )
+  
+  gGDO <- GRanges(
+    seqnames = GDO$chr,
+    ranges = IRanges(start = GDO$start, end = GDO$end)
+  )
+  
+  nearest <- nearest(gGDO, gSNP)
+  dist <- distance(gGDO, gSNP[nearest])
+  
+  nearestSNP <- SNP[nearest,]
+  
+  result <- cbind(
+    select(GDO, SNP, sgRNA.Sequence, chr, start, end),
+    nearestSNP,
+    distance = dist
+  )
+  
+  return(result)
+}
+
