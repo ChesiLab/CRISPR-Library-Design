@@ -31,8 +31,14 @@ regions500 <- read.xlsx(paste0(wd,"//preprocessed//regions500.xlsx"))
 regions600 <- read.xlsx(paste0(wd,"//preprocessed//regions600.xlsx"))
 
 # Indicate columns of interest.
-keepCol <- c("Input", "Reference.Sequence", "Orientation", "sgRNA.'Cut'.Position", 
-             "sgRNA.Sequence", "sgRNA.Context.Sequence", "On-Target.Efficacy.Score", "Pick.Order")
+keepCol <- c("Input", "Reference.Sequence", "Orientation", "sgRNA.'Cut'.Position",  
+             "sgRNA.Sequence", "sgRNA.Context.Sequence", "On-Target.Efficacy.Score",
+             "#.Off-Target.Tier.I.Match.Bin.I.Matches", "#.Off-Target.Tier.II.Match.Bin.I.Matches",
+             "#.Off-Target.Tier.III.Match.Bin.I.Matches", "#.Off-Target.Tier.I.Match.Bin.II.Matches",
+             "#.Off-Target.Tier.II.Match.Bin.II.Matches", "#.Off-Target.Tier.III.Match.Bin.II.Matches",
+             "On-Target.Rank", "Off-Target.Rank",
+             "Pick.Order")
+# >>> add smth for OFF-targets
 
 # Get filenames of CRISPick outputs.
 setwd(paste0(wd,'\\crispick_output'))
