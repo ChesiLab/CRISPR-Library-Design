@@ -70,14 +70,19 @@ for (file in file_list){
   # Add the SNP region.
   if (grepl("200", file)){
     GDOout <- left_join(GDOout, select(regions200, SNP, crispick), join_by("Input"=="crispick"))
+    GDOout$regWidth <- 200
   } else if (grepl("300", file)){
     GDOout <- left_join(GDOout, select(regions300, SNP, crispick), join_by("Input"=="crispick"))
+    GDOout$regWidth <- 300
   } else if (grepl("400", file)){
     GDOout <- left_join(GDOout, select(regions400, SNP, crispick), join_by("Input"=="crispick"))
+    GDOout$regWidth <- 400
   } else if (grepl("500", file)){
     GDOout <- left_join(GDOout, select(regions500, SNP, crispick), join_by("Input"=="crispick"))
+    GDOout$regWidth <- 500
   } else if (grepl("600", file)){
     GDOout <- left_join(GDOout, select(regions600, SNP, crispick), join_by("Input"=="crispick"))
+    GDOout$regWidth <- 600
   }
   
   # Add rownumber for reference later.
