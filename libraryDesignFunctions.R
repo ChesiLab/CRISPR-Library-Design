@@ -366,7 +366,7 @@ replaceBadRegion <- function(badPool, biggerPool, allRegions, badRegions){
 
 # -----------------------------------------------------------------------------
 assembleLibrary <- function(numGDO, fileList, regionList, dirGDO, dirRegion,
-                            onTargetFilter = -100, pickByStrand = FALSE){
+                            onTargetFilter = -100, overlapLeniency = 0, pickByStrand = FALSE){
   initLib <- TRUE
   badRegion <- data.frame(SNP=character())
   
@@ -387,8 +387,17 @@ assembleLibrary <- function(numGDO, fileList, regionList, dirGDO, dirRegion,
         GDO <- subset(GDO, `On-Target.Efficacy.Score` > onTargetFilter)
       }
       
-      # Get top GDO(s)
-      overlapGDO <- findSelfOverlap(GDO, "chr","start","end")
+      # Choose overlap leniency (or lack thereof)
+      if (overlapLeniency == 0){
+        overlapGDO <- findSelfOverlap(GDO, "chr","start","end")
+      } else if (overlapLeniency > 0){
+        GDO <- GDO %>%
+          mutate(startL = start + overlapLeniency,
+                 endL = end - overlapLeniency)
+        overlapGDO <- findSelfOverlap(GDO, "chr","startL","endL")
+      }
+      
+      # Choose whether picking is sensitive to even strand representation.
       if (pickByStrand == FALSE){
         topGDO <- pickTopGDO(numGDO, GDO, region, overlapGDO)
       } else if (pickByStrand == TRUE){
