@@ -353,6 +353,62 @@ replaceBadRegion <- function(badPool, biggerPool, allRegions, badRegions){
 }
 
 # -----------------------------------------------------------------------------
+assembleLibrary <- function(numGDO, fileList, regionList, dirGDO, dirRegion,
+                            onTargetFilter = -100, pickByStrand = FALSE){
+  initLib <- TRUE
+  badRegion <- data.frame(SNP=character())
+  
+  for (regionName in regionList){
+    # regionName <- regionList[2] # DEBUG
+    
+    if( (initLib==TRUE)|(nrow(badRegion)>0) ){
+      
+      # Get the region
+      region <- read.xlsx(paste0(dirRegion, regionName, ".xlsx"))
+      
+      # Get coreesponding GDO
+      width <- substring(regionName, nchar(regionName)-2, nchar(regionName)) # get the width
+      file <- grep(width, fileList, value=TRUE) # get the corresponding GDO file
+      GDO <- read.xlsx(paste0(dirGDO, file, ".xlsx"))
+      
+      if (onTargetFilter > -100){ # the values for this aren't straightforward.. # REFACTOR
+        GDO <- subset(GDO, `On-Target.Efficacy.Score` > onTargetFilter)
+      }
+      
+      # Get top GDO(s)
+      overlapGDO <- findSelfOverlap(GDO, "chr","start","end")
+      if (pickByStrand == FALSE){
+        topGDO <- pickTopGDO(numGDO, GDO, region, overlapGDO)
+      } else if (pickByStrand == TRUE){
+        topGDO <- pickTopGDObyStrand(numGDO, GDO, region, overlapGDO)
+      }
+      
+      if (initLib == TRUE){
+        initReg <- region
+      } else if (initLib == FALSE){
+        if (!all(badRegion$SNP %in% initReg$SNP)){ # Warning if new regions have been created.
+          print(paste(regionName, "has merged bad regions together compared to initial regions."))
+        }
+        topGDO <- replaceBadRegion(prevTopGDO, topGDO, initReg, badRegion)
+      }
+      
+      badRegion <- getBadRegion(topGDO, initReg, numGDO)
+      
+      if (nrow(badRegion)>0){
+        print(paste(regionName, "has the following bad regions:"))
+        print(badRegion$SNP)
+      }
+      
+      prevTopGDO <- topGDO
+      
+      initLib <- FALSE
+      
+    }
+  }
+  return(topGDO)
+}
+
+# -----------------------------------------------------------------------------
 # calcDistGDOtoSNP()
 # Dependency: GenomicRanges, dplyr
 # Calculates the distance from each GDO to its nearest SNP.
