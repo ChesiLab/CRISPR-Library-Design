@@ -1,0 +1,129 @@
+---
+title: "pickComparison"
+author: Shannon Laub
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+if(!require('pacman')) {install.packages('pacman')}
+pacman::p_load(openxlsx, dplyr, tidyr, reshape2, stringr)
+
+# BiocManager::install("GenomicRanges")
+library(GenomicRanges)
+
+source('libraryDesignFunctions.R')
+```
+
+# Directory Info
+```{r}
+wd <- getwd()
+wd # verify directory location
+
+# Set universal directories:
+dirRegion <- paste0(wd,"//preprocessed//")
+dirGDO <- paste0(wd, "//preprocessed//")
+```
+# Library Construction
+
+Comparisons:
+* 3 guides vs 5 guides
+* Using a or i parameter
+* initial region width, i.e. 200 vs 300bp
+
+* w/ or w/o 0.2 filter
+* w/ or w/o strand diversity
+* w/ or w/o overlap leniency
+* pick 50 vs pick 30
+
+
+## Pick 30 vs Pick 50
+Use 5 guides + CRISPRi as the baseline
+```{r}
+regionList <- c("regions200", "regions300", "regions400", "regions500", "regions600")
+
+fileList30 <- c("200bp_i30","300bp_i30","400bp_i30","500bp_i30","600bp_i30")
+fileList50 <- c("200bp_i50","300bp_i50","400bp_i50","500bp_i50","600bp_i50")
+
+GDO30 <- assembleLibrary(5, fileList30, regionList, dirGDO, dirRegion)
+GDO50 <- assembleLibrary(5, fileList50, regionList, dirGDO, dirRegion)
+
+qc(GDO30)
+qc(GDO50)
+```
+
+```{r}
+regionList <- c("regions200", "regions300", "regions400", "regions500", "regions600")
+
+fileList30 <- c("200bp_i30","300bp_i30","400bp_i30","500bp_i30","600bp_i30")
+fileList50 <- c("200bp_i50","300bp_i50","400bp_i50","500bp_i50","600bp_i50")
+
+GDO30 <- assembleLibrary(5, fileList30, regionList, dirGDO, dirRegion, onTargetFilter = 0.2)
+GDO50 <- assembleLibrary(5, fileList50, regionList, dirGDO, dirRegion, onTargetFilter = 0.2)
+
+qc(GDO30)
+qc(GDO50)
+```
+## With or Without On-Target Filter
+```{r}
+regionList <- c("regions200", "regions300", "regions400", "regions500", "regions600")
+
+fileListi <- c("200bp_i50","300bp_i50","400bp_i50","500bp_i50","600bp_i50")
+
+GDObase <- assembleLibrary(5, fileListi, regionList, dirGDO, dirRegion)
+GDOFilter <- assembleLibrary(5, fileListi, regionList, dirGDO, dirRegion, onTargetFilter = 0.2)
+
+qc(GDObase)
+qc(GDOFilter)
+```
+
+
+
+## Compare CRISPRi vs CRISPRa
+, no other filters
+```{r}
+regionList <- c("regions200", "regions300", "regions400", "regions500", "regions600")
+
+fileListi <- c("200bp_i50","300bp_i50","400bp_i50","500bp_i50","600bp_i50")
+fileLista <- c("200bp_a50","300bp_a50","400bp_a50","500bp_a50","600bp_a50")
+
+GDOi <- assembleLibrary(5, fileListi, regionList, dirGDO, dirRegion)
+GDOa <- assembleLibrary(5, fileLista, regionList, dirGDO, dirRegion)
+
+qc(GDOi)
+qc(GDOa)
+```
+
+
+```{r}
+# regionInit <- "regions200"
+regionList <- c("regions200", "regions300", "regions400", "regions500", "regions600")
+fileList <- c("200bp_i50","300bp_i50","400bp_i50","500bp_i50","600bp_i50")
+
+numGDO <- 5
+
+
+onTargetFilter <- 0.2
+pickByStrand <- FALSE
+
+GDOlib3 <- assembleLibrary(3, fileList, regionList, dirGDO, dirRegion,
+                          onTargetFilter = 0.2, pickByStrand = TRUE, overlapLeniency=1)
+GDOlib5 <- assembleLibrary(5, fileList, regionList, dirGDO, dirRegion,
+                          onTargetFilter = 0.2)
+
+qc(GDOlib3)
+qc(GDOlib5)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+

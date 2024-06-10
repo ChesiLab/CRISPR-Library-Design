@@ -1,6 +1,6 @@
 ---
-title: "R Notebook"
-output: html_notebook
+title: "Final Library Design"
+author: Shannon Laub
 ---
 
 ```{r setup, include=FALSE}
@@ -15,60 +15,43 @@ library(GenomicRanges)
 source('libraryDesignFunctions.R')
 ```
 
--------------------------------------------------------------------------------
-# Load GDO Pool and Region Information
+Before running this script, go through the following to generate guide pools:
+- preprocessCRISPick.Rmd - to create raw guide pools
+- preprocessGDO.Rmd - to preprocess the raw guide pools for this script
+
+# Set Directory Information
 ```{r}
 wd <- getwd()
-wd
+wd # verify directory location
 
-regions200 <- read.xlsx(paste0(wd,"//preprocessed//regions200.xlsx"))
-regions300 <- read.xlsx(paste0(wd,"//preprocessed//regions300.xlsx"))
-regions400 <- read.xlsx(paste0(wd,"//preprocessed//regions400.xlsx"))
-
-GDO200 <- read.xlsx(paste0(wd,"//preprocessed//200bp_i30.xlsx"))
-GDO300 <- read.xlsx(paste0(wd,"//preprocessed//300bp_i30.xlsx"))
-GDO400 <- read.xlsx(paste0(wd,"//preprocessed//400bp_i30.xlsx"))
-
+# Set universal directories:
+dirRegion <- paste0(wd,"//preprocessed//")
+dirGDO <- paste0(wd, "//preprocessed//")
 ```
 
-# Get top guides
-
-## Get top non-overlapping guides.
-Get indices of overlapping guides.
-
+# Assemble Library
 ```{r}
-GDO200Overlap <- findSelfOverlap(GDO200, "chr", "start", "end")
-GDO300Overlap <- findSelfOverlap(GDO300, "chr", "start", "end")
-GDO400Overlap <- findSelfOverlap(GDO400, "chr", "start", "end")
-```
-
-Get top guides.
-```{r}
-# Pick the top performing guides for each SNP region width.
-# Here we pick the top 3. Could pick top 5 etc.
 numGDO <- 5
+regionList <- c("regions200", "regions300", "regions400", "regions500", "regions600")
+fileList <- c("200bp_i50","300bp_i50","400bp_i50","500bp_i50","600bp_i50")
 
-topGDO200 <- pickTopGDObyStrand(numGDO, GDO200, regions200, GDO200Overlap)
-topGDO300 <- pickTopGDObyStrand(numGDO, GDO300, regions300, GDO300Overlap)
-topGDO400 <- pickTopGDObyStrand(numGDO, GDO400, regions400, GDO400Overlap)
-
-## Picking guides but without filtering for strand representation.
-# topGDO200 <- pickTopGDO(numGDO, GDO200, regions200, GDO200Overlap)
-# topGDO300 <- pickTopGDO(numGDO, GDO300, regions300, GDO300Overlap)
-# topGDO400 <- pickTopGDO(numGDO, GDO400, regions400, GDO400Overlap)
+targetGDO <- assembleLibrary(5, fileList, regionList, dirGDO, dirRegion,
+                             onTargetFilter = 0.2, pickByStrand = TRUE, overlapLeniency = 1)
 ```
 
-Export list of top guides and all guides.
 ```{r}
-write.xlsx(topGDO200, file = paste0(wd, "//output//top3_200bp_i30.xlsx"))
-write.xlsx(topGDO300, file = paste0(wd, "//output//top3_300bp_i30.xlsx"))
-write.xlsx(topGDO400, file = paste0(wd, "//output//top3_400bp_i30.xlsx"))
-
-write.xlsx(GDO200, file = paste0(wd, "//output//200bp_i30.xlsx"))
-write.xlsx(GDO300, file = paste0(wd, "//output//300bp_i30.xlsx"))
-write.xlsx(GDO400, file = paste0(wd, "//output//400bp_i30.xlsx"))
+qc(targetGDO)
+orient <- qcStrand(targetGDO)
 ```
 
+TODO:
+- add positive control library generation
+
+
+--------------------------------------------------------------------------------
+
+
+# Archive
 
 # QC
 How is the on-target score?
@@ -90,6 +73,14 @@ hist(table(topGDO400$SNP))
 hist(topGDO200$`On-Target.Efficacy.Score`)
 hist(topGDO300$`On-Target.Efficacy.Score`)
 hist(topGDO400$`On-Target.Efficacy.Score`)
+
+hist(topGDO200$`#.Off-Target.Tier.I.Match.Bin.I.Matches`)
+hist(topGDO200$`#.Off-Target.Tier.II.Match.Bin.I.Matches`)
+hist(topGDO200$`#.Off-Target.Tier.III.Match.Bin.I.Matches`)
+
+hist(topGDO200$`#.Off-Target.Tier.I.Match.Bin.II.Matches`)
+hist(topGDO200$`#.Off-Target.Tier.II.Match.Bin.II.Matches`)
+hist(topGDO200$`#.Off-Target.Tier.III.Match.Bin.II.Matches`)
 
 # On-Target Efficacy by SNP Region
 # guide_summary <- top_guides %>%
