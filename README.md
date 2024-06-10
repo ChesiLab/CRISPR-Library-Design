@@ -1,6 +1,6 @@
 File Information:
 
-To perform library design, first run preprocessing script to generate guide pools:
+To perform library design, first run preprocessing scripts to generate guide pools:
 - preprocessCRISPick.Rmd
 - preprocessGDO.Rmd
 
