@@ -328,15 +328,27 @@ getBadRegion <- function(testPool, regions, numGDO){
 
 # -----------------------------------------------------------------------------
 # replaceBadRegion()
-
+# For regions that have been combined due to larger region width,
+# 
 replaceBadRegion <- function(badPool, biggerPool, allRegions, badRegions){
-  # Removes any guides that are in the "bad regions" from the original pool
-  combinedGDO <- subset(badPool, !(SNP %in% badRegions$SNP))
+  if (nrow(badRegions>0)){
+    # Removes any guides that are in the "bad regions" from the original pool
+    combinedGDO <- subset(badPool, !(SNP %in% badRegions$SNP))
+    
+    # For bad regions, adds guides from the expanded guide pool.
+    combinedGDO <- bind_rows(combinedGDO, 
+                           subset(biggerPool, SNP %in% badRegions$SNP))
+  } else {
+    combinedGDO <- badPool
+    print("No bad regions listed.")
+  }
   
-  # For bad regions, adds guides from the expanded guide pool.
-  combinedGDO <- bind_rows(combinedGDO, 
-                         subset(biggerPool, SNP %in% badRegions$SNP))
-  
+  if (!all(badRegions$SNP %in% allRegions$SNP)){
+    changedReg <- subset(badRegions, !(SNP %in% allRegions$SNP))
+    
+    # print("Some regions have been combined. Please check: ")
+    print(changedReg$SNP)
+  }
   return(combinedGDO)
 }
 
