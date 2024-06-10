@@ -372,3 +372,21 @@ calcDistGDOtoSNP <- function(SNP, GDO){
   return(result)
 }
 
+# -----------------------------------------------------------------------------
+# qc()
+# Outputs some quick metrics on a given GDO library input.
+
+qc <- function(lib){
+  print(paste("Mean Num GDO per Region:", mean(table(lib$SNP))))
+  print(paste("Mean On-Target:", mean(lib$`On-Target.Efficacy.Score`)))
+  print(paste("Mean Off-Target, Tier I Bin I:", mean(lib$`#.Off-Target.Tier.I.Match.Bin.I.Matches`)))
+  print(paste("Mean Off-Target, Tier II Bin I:", mean(lib$`#.Off-Target.Tier.II.Match.Bin.I.Matches`)))
+  print(paste("Mean Off-Target, Tier III Bin I:", mean(lib$`#.Off-Target.Tier.III.Match.Bin.I.Matches`)))
+  print(paste("Mean Off-Target, Tier I Bin II:", mean(lib$`#.Off-Target.Tier.I.Match.Bin.II.Matches`)))
+  print(paste("Mean Off-Target, Tier II Bin II:", mean(lib$`#.Off-Target.Tier.II.Match.Bin.II.Matches`)))
+  print(paste("Mean Off-Target, Tier III Bin II:", mean(lib$`#.Off-Target.Tier.III.Match.Bin.II.Matches`)))
+}
+
+
+
+
