@@ -455,6 +455,14 @@ qc <- function(lib){
   print(paste("Mean Off-Target, Tier III Bin II:", mean(lib$`#.Off-Target.Tier.III.Match.Bin.II.Matches`)))
 }
 
+qcStrand <- function(lib){
+  orient <- lib %>%
+    group_by(SNP, Orientation) %>%
+    summarize(count = n(), .groups='drop') %>%
+    pivot_wider(names_from = Orientation, values_from = count, values_fill = list(count = 0))
+  
+  return(orient)
+}
 
 
 
