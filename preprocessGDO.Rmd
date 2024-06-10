@@ -31,8 +31,21 @@ regions500 <- read.xlsx(paste0(wd,"//preprocessed//regions500.xlsx"))
 regions600 <- read.xlsx(paste0(wd,"//preprocessed//regions600.xlsx"))
 
 # Indicate columns of interest.
-keepCol <- c("Input", "Reference.Sequence", "Orientation", "sgRNA.'Cut'.Position", 
-             "sgRNA.Sequence", "sgRNA.Context.Sequence", "On-Target.Efficacy.Score", "Pick.Order")
+# Re: Num. of Off-Target hits:
+# Tier I - coding genes
+# Tier II - non-coding genes
+# Tier III - all other regions
+# Bin I - perfect match
+# Bin II - ~a few mismatched bases
+
+keepCol <- c("Input", "Reference.Sequence", "Orientation", "sgRNA.'Cut'.Position",  
+             "sgRNA.Sequence", "sgRNA.Context.Sequence", "On-Target.Efficacy.Score",
+             "#.Off-Target.Tier.I.Match.Bin.I.Matches", "#.Off-Target.Tier.II.Match.Bin.I.Matches",
+             "#.Off-Target.Tier.III.Match.Bin.I.Matches", "#.Off-Target.Tier.I.Match.Bin.II.Matches",
+             "#.Off-Target.Tier.II.Match.Bin.II.Matches", "#.Off-Target.Tier.III.Match.Bin.II.Matches",
+             "On-Target.Rank", "Off-Target.Rank",
+             "Pick.Order")
+# >>> add smth for OFF-targets
 
 # Get filenames of CRISPick outputs.
 setwd(paste0(wd,'\\crispick_output'))
@@ -57,14 +70,19 @@ for (file in file_list){
   # Add the SNP region.
   if (grepl("200", file)){
     GDOout <- left_join(GDOout, select(regions200, SNP, crispick), join_by("Input"=="crispick"))
+    GDOout$regWidth <- 200
   } else if (grepl("300", file)){
     GDOout <- left_join(GDOout, select(regions300, SNP, crispick), join_by("Input"=="crispick"))
+    GDOout$regWidth <- 300
   } else if (grepl("400", file)){
     GDOout <- left_join(GDOout, select(regions400, SNP, crispick), join_by("Input"=="crispick"))
+    GDOout$regWidth <- 400
   } else if (grepl("500", file)){
     GDOout <- left_join(GDOout, select(regions500, SNP, crispick), join_by("Input"=="crispick"))
+    GDOout$regWidth <- 500
   } else if (grepl("600", file)){
     GDOout <- left_join(GDOout, select(regions600, SNP, crispick), join_by("Input"=="crispick"))
+    GDOout$regWidth <- 600
   }
   
   # Add rownumber for reference later.
