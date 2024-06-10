@@ -221,15 +221,28 @@ pickTopGDO <- function(numTopGDO, guidePool, regions, overlapGDO) {
 # overlapGDO = GDO200Overlap
 
 pickTopGDObyStrand <- function(numTopGDO, guidePool, regions, overlapGDO){
+  # For DEBUG:
+  # numTopGDO <- 5
+  # guidePool <- read.xlsx(paste0(wd,"//preprocessed//200bp_i50.xlsx"))
+  # regions <- read.xlsx(paste0(wd,"//preprocessed//regions200.xlsx"))
+  # overlapGDO <- findSelfOverlap(guidePool, "chr", "start", "end")
+  
+  # saveRDS(topGDO, file = "topGDOj3.rds")
+  # topGDO <- readRDS(file = "topGDOj3.rds")
+  
+  # Initialize df for topGDO.
   topGDO <- guidePool[0,]
   
-  for (i in 1:nrow(regions)){ #nrow(regions)
+  for (i in 1:nrow(regions)){ # 1:nrow(regions)
     # i = 1
+    numOrientation <- c(sense=0, antisense=0)
+    
     for (j in 1:numTopGDO) {
-      # j = 5
-      # Check if there is more than one guide left in the pool for the given region.
+      # j = 2
+      
+      # Are there any guides left at all?
       if (length(subset(guidePool, SNP==regions$SNP[i]))>0){
-        
+        # -----------------------------------------------------------------------
         # If less than half of the guides have been picked, orientation doesn't matter:
         if(nrow(subset(topGDO, SNP==regions$SNP[i])) < (numTopGDO/2)){
           
@@ -238,48 +251,44 @@ pickTopGDObyStrand <- function(numTopGDO, guidePool, regions, overlapGDO){
             arrange(Pick.Order) %>%
             dplyr::slice(1)
           
-          # get the top pick (based on Pick Order), add this to top_guides.
-          # then remove all guides that are overlapping with the top pick.
-          topGDO <- bind_rows(topGDO, top)
-          
-          # gets indices of guides that overlap the current top pick
-          remove <- overlapGDO[overlapGDO$queryHits==top$n,2] 
-          
-          # Removes guides that overlap the top hit from the remaining guide pool.
-          guidePool <- guidePool[!guidePool$n %in% remove,] 
+          topGDO <- bind_rows(topGDO, top) # Get top pick, add to topGDO
+          remove <- overlapGDO[overlapGDO$queryHits==top$n,2] # Get indices of guides overlapping top pick
+          guidePool <- guidePool[!guidePool$n %in% remove,] # Remove overlapping guides from pool
           
           # If more than half of the guides have been picked, orientation could matter:
         } else {
-          numOrientation <- table(topGDO$Orientation)
+          
+          orientCt <- table(subset(topGDO, SNP==regions$SNP[i])$Orientation)
+          numOrientation[names(orientCt)] <- orientCt
           
           # If more than half of guides are antisense:
-          if (numOrientation["antisense"] > (numTopGDO/2)){
+          if (numOrientation["antisense"] >= (numTopGDO/2)){
             # subset for remaining guides that are antisense
             # then pick top guide
-            if (length(subset(guidePool, SNP==regions$SNP[i] & Orientation == "sense")>0)){
+            if ( length(subset(guidePool, SNP==regions$SNP[i] & Orientation == "sense")) > 0){
               top <- guidePool %>%
                 subset(SNP==regions$SNP[i] & Orientation=="sense") %>%
                 arrange(Pick.Order) %>%
                 dplyr::slice(1)
               
-              topGDO <- bind_rows(topGDO, top)
-              remove <- overlapGDO[overlapGDO$queryHits==top$n,2] 
-              guidePool <- guidePool[!guidePool$n %in% remove,]
+              topGDO <- bind_rows(topGDO, top) # Get top pick, add to topGDO
+              remove <- overlapGDO[overlapGDO$queryHits==top$n,2] # Get indices of guides overlapping top pick
+              guidePool <- guidePool[!guidePool$n %in% remove,] # Remove overlapping guides from pool
             }
             
             # If more than half of guides are sense:
-          } else if (numOrientation["sense"] > (numTopGDO/2)){
+          } else if (numOrientation["sense"] >= (numTopGDO/2)){
             # subset for remaining guides that are sense
             # then pick top guide
-            if (length(subset(guidePool, SNP==regions$SNP[i] & Orientation == "antisense")>0)){
+            if ( length(subset(guidePool, SNP==regions$SNP[i] & Orientation == "antisense")) > 0){
               top <- guidePool %>%
                 subset(SNP==regions$SNP[i] & Orientation=="antisense") %>%
                 arrange(Pick.Order) %>%
                 dplyr::slice(1)
               
-              topGDO <- bind_rows(topGDO, top)
-              remove <- overlapGDO[overlapGDO$queryHits==top$n,2] 
-              guidePool <- guidePool[!guidePool$n %in% remove,]
+              topGDO <- bind_rows(topGDO, top) # Get top pick, add to topGDO
+              remove <- overlapGDO[overlapGDO$queryHits==top$n,2] # Get indices of guides overlapping top pick
+              guidePool <- guidePool[!guidePool$n %in% remove,] # Remove overlapping guides from pool
             }
             
             # If there aren't too many guides of either orientation:
@@ -291,15 +300,18 @@ pickTopGDObyStrand <- function(numTopGDO, guidePool, regions, overlapGDO){
               arrange(Pick.Order) %>%
               dplyr::slice(1)
             
-            topGDO <- bind_rows(topGDO, top)
-            remove <- overlapGDO[overlapGDO$queryHits==top$n,2]
-            guidePool <- guidePool[!guidePool$n %in% remove,]
-          } 
-          
-        } #end if/else for guidepool > numTopGDO/2
-      } #end if guidePool$region[i] > 0
-    } #end for (j in 1:numTopGDO)
-  }# end for (i in 1:nrow(regions))
+            topGDO <- bind_rows(topGDO, top) # Get top pick, add to topGDO
+            remove <- overlapGDO[overlapGDO$queryHits==top$n,2] # Get indices of guides overlapping top pick
+            guidePool <- guidePool[!guidePool$n %in% remove,] # Remove overlapping guides from pool
+          } #if/else for more than half of guides have been picked.
+        } #if/else for how many guides have been picked already
+        
+        # -----------------------------------------------------------------------  
+      } #end Check if any guides left for the region at all.
+      
+      
+    } #end Loops till numTopGDO; for (j in 1:numTopGDO)
+  }# end Loops through all regions; for (i in 1:nrow(regions))
   
   return(topGDO)
 }
