@@ -7,7 +7,7 @@ author: Shannon Laub
 knitr::opts_chunk$set(echo = TRUE)
 
 if(!require('pacman')) {install.packages('pacman')}
-pacman::p_load(openxlsx, dplyr, reshape2, stringr)
+pacman::p_load(openxlsx, dplyr, tidyr, reshape2, stringr)
 
 # BiocManager::install("GenomicRanges")
 library(GenomicRanges)
@@ -27,148 +27,64 @@ wd # verify directory location
 # Set universal directories:
 dirRegion <- paste0(wd,"//preprocessed//")
 dirGDO <- paste0(wd, "//preprocessed//")
+
+snpList <- unique(read.xlsx(paste0(wd,"//input//snp_loc_hg19.xlsx")))
+rownames(snpList) <- NULL
+snpList$chr <- as.character(snpList$chr)
 ```
 
 # Assemble Library
 ```{r}
-numGDO <- 5
 regionList <- c("regions200", "regions300", "regions400", "regions500", "regions600")
-fileList <- c("200bp_i50","300bp_i50","400bp_i50","500bp_i50","600bp_i50")
+fileList <- c("200bp_i30","300bp_i30","400bp_i30","500bp_i30","600bp_i30")
+targetGDO <- assembleLibrary(3, fileList, regionList, dirGDO, dirRegion,
+                          onTargetFilter = 0.2, pickByStrand = TRUE, overlapLeniency=2)
 
-targetGDO <- assembleLibrary(5, fileList, regionList, dirGDO, dirRegion,
-                             onTargetFilter = 0.2, pickByStrand = TRUE, overlapLeniency = 1)
+uniqueGDO <- unique(targetGDO)
+nrow(uniqueGDO) == nrow(targetGDO)
+
+overlap <- findSelfOverlap(targetGDO, "chr", "start","end", selfBool=TRUE)
+overlapLenient <- findSelfOverlap(targetGDO, "chr", "startL","endL", selfBool=TRUE)
 ```
 
 ```{r}
-qc(targetGDO)
+qcSimple(targetGDO)
+qcSumOff(targetGDO)
 orient <- qcStrand(targetGDO)
 ```
 
-TODO:
-- add positive control library generation
-
-
---------------------------------------------------------------------------------
-
-
-# Archive
-
-# QC
-How is the on-target score?
-```{r}
-print("Mean Number of Guides per SNP")
-print(paste("GDO200:", mean(table(topGDO200$SNP))))
-print(paste("GDO300:", mean(table(topGDO300$SNP))))
-print(paste("GDO400:", mean(table(topGDO400$SNP))))
-
-print("Mean On-Target Efficacy Score for the Library")
-print(paste("GDO200:", mean(topGDO200$`On-Target.Efficacy.Score`)))
-print(paste("GDO300:", mean(topGDO300$`On-Target.Efficacy.Score`)))
-print(paste("GDO400:", mean(topGDO400$`On-Target.Efficacy.Score`)))
-
-hist(table(topGDO200$SNP))
-hist(table(topGDO300$SNP))
-hist(table(topGDO400$SNP))
-
-hist(topGDO200$`On-Target.Efficacy.Score`)
-hist(topGDO300$`On-Target.Efficacy.Score`)
-hist(topGDO400$`On-Target.Efficacy.Score`)
-
-hist(topGDO200$`#.Off-Target.Tier.I.Match.Bin.I.Matches`)
-hist(topGDO200$`#.Off-Target.Tier.II.Match.Bin.I.Matches`)
-hist(topGDO200$`#.Off-Target.Tier.III.Match.Bin.I.Matches`)
-
-hist(topGDO200$`#.Off-Target.Tier.I.Match.Bin.II.Matches`)
-hist(topGDO200$`#.Off-Target.Tier.II.Match.Bin.II.Matches`)
-hist(topGDO200$`#.Off-Target.Tier.III.Match.Bin.II.Matches`)
-
-# On-Target Efficacy by SNP Region
-# guide_summary <- top_guides %>%
-#   group_by(SNP) %>%
-#   summarise(mean = mean(`On-Target.Efficacy.Score`))
-# 
-# subset(guide_summary, mean < 0.2)
-```
-# Combining Guide Searches
-First ran guide search for 200bp, ran QC. Then ran 300bp and 400bp to get more guides for poorly performing regions.
-
-Load all GDOs + Regions if needed:
-```{r}
-wd <- getwd()
-
-# Load all guide pools
-GDO200 <- read.xlsx(paste0(wd,"//output//top3_200bp_i30.xlsx"))
-GDO300 <- read.xlsx(paste0(wd,"//output//top3_300bp_i30.xlsx"))
-GDO400 <- read.xlsx(paste0(wd,"//output//top3_400bp_i30.xlsx"))
-# note, less guides in 300bp & 400bp because the regions were combined. There are fewer regions.
-
-# Load regions by width
-regions200 <- read.xlsx(paste0(wd,"//preprocessed//regions200.xlsx"))
-regions300 <- read.xlsx(paste0(wd,"//preprocessed//regions300.xlsx"))
-regions400 <- read.xlsx(paste0(wd,"//preprocessed//regions400.xlsx"))
-```
-
-Loading all guide searches:
-```{r}
-# Initialize final library
-regions <- regions200
-finalGDO <- GDO200
-numGDO <- 5
-
-# NOTE/TODO:
-# The bad regions from our original pool (GDO200) are not part of any combined region
-# i.e. where 2+ SNPs were combined in the same region.
-# If the bad region names change from pool to pool,
-# you will need to UPDATE replaceBadRegion() to throw out the UNCOMBINED regions
-# before adding the combined region, to accommodate.
-
-# Get any regions that are missing or do not have enough guides
-badRegion <- getBadRegion(finalGDO, regions, numGDO) # 8 bad regions
-
-if(nrow(badRegion)>0){
-  finalGDO <- replaceBadRegion(finalGDO, GDO300, regions, badRegion)
-}
-
-badRegion <- getBadRegion(finalGDO, regions, numGDO) # 4 bad regions
-
-if(nrow(badRegion)>0){
-  finalGDO <- replaceBadRegion(finalGDO, GDO400, regions, badRegion)
-}
-
-badRegion <- getBadRegion(finalGDO, regions, numGDO) # no bad regions
-
-test <- subset(finalGDO, SNP %in% badRegion$SNP)
-```
 
 Quality Control
 ```{r}
+# Load regions for reference
+
+regions200 <- read.xlsx(paste0(wd,"//preprocessed//regions200.xlsx"))
+regions500 <- read.xlsx(paste0(wd,"//preprocessed//regions500.xlsx"))
+
 # Check that you have all the expected regions from the 200bp
   # i.e. you haven't LOST any regions and you haven't ADDED any regions by accident
 
-all(finalGDO$SNP %in% regions$SNP)
-!any(is.na(finalGDO$SNP))
-
-# Check for no overlaps between GUIDES in the library
-finalGDOOverlap <- findSelfOverlap(finalGDO, "chr","start","end",selfBool = TRUE)
+all(targetGDO$SNP %in% regions200$SNP)
+!any(is.na(targetGDO$SNP))
 
 # Check that each guide overlaps with only ONE REGION
 
-reg200Overlap <- findOverlap(finalGDO, regions200,
+reg200Overlap <- findOverlap(targetGDO, regions200,
                           "chr", "start", "end",
                           "chr", "start", "end")
-# 212 out of 222 guides overlap the 200bp region
+# 201 out of 222 guides overlap the 200bp region
 
-reg400Overlap <- findOverlap(finalGDO, regions400,
+reg500Overlap <- findOverlap(targetGDO, regions500,
                           "chr", "start", "end",
                           "chr", "start", "end")
-# All guides overlap a 400bp region.
+# All guides overlap a 500bp region.
 ```
 
 Export guide list:
 ```{r}
-write.xlsx(finalGDO, file = paste0(wd, "//output//finalTargetGDOi30.xlsx"))
+write.xlsx(targetGDO, file = paste0(wd, "//output//finalTargetGDOi30v2.xlsx"))
 
-# finalGDO <- read.xlsx(paste0(wd,"//output//finalTargetGDOi30.xlsx"))
+# targetGDO <- read.xlsx(paste0(wd,"//output//finalTargetGDOi30.xlsx"))
 ```
 
 # Updating Positive Controls

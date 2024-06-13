@@ -233,7 +233,7 @@ print(mean(calcDistGDOtoSNP(snpList, diff02)$distance))
 
 
 ```
-# Unit Test
+# Unit Test + Final Library
 ```{r}
 
 regionList <- c("regions200", "regions300", "regions400", "regions500", "regions600")
