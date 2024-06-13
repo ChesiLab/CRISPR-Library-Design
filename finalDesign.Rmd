@@ -82,7 +82,7 @@ reg500Overlap <- findOverlap(targetGDO, regions500,
 
 Export guide list:
 ```{r}
-write.xlsx(targetGDO, file = paste0(wd, "//output//finalTargetGDOi30v2.xlsx"))
+write.xlsx(targetGDO, file = paste0(wd, "//output//finalTargetGDOi30.xlsx"))
 
 # targetGDO <- read.xlsx(paste0(wd,"//output//finalTargetGDOi30.xlsx"))
 ```
