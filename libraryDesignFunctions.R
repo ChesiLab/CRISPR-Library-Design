@@ -493,23 +493,23 @@ qcSumOff <- function(lib){
 }
 
 qcSumRegOff <- function(lib){
-  print(paste("Reg w OffTarget, Tier I Bin I:", nrow(subset(lib, `#.Off-Target.Tier.I.Match.Bin.I.Matches`>0)) ))
-  print(paste("Reg w OffTarget, Tier II Bin I:", nrow(subset(lib, `#.Off-Target.Tier.II.Match.Bin.I.Matches`>0)) ))
-  print(paste("Reg w OffTarget, Tier III Bin I:", nrow(subset(lib, `#.Off-Target.Tier.III.Match.Bin.I.Matches`>0)) ))
+  print(paste("#GDO w OffTarget, Tier I Bin I:", nrow(subset(lib, `#.Off-Target.Tier.I.Match.Bin.I.Matches`>0)) ))
+  print(paste("#GDO w OffTarget, Tier II Bin I:", nrow(subset(lib, `#.Off-Target.Tier.II.Match.Bin.I.Matches`>0)) ))
+  print(paste("#GDO w OffTarget, Tier III Bin I:", nrow(subset(lib, `#.Off-Target.Tier.III.Match.Bin.I.Matches`>0)) ))
   
-  print(paste("Reg w OffTarget, Tier I Bin II:", nrow(subset(lib, `#.Off-Target.Tier.I.Match.Bin.II.Matches`>0)) ))
-  print(paste("Reg w OffTarget, Tier II Bin II:", nrow(subset(lib, `#.Off-Target.Tier.II.Match.Bin.II.Matches`>0)) ))
-  print(paste("Reg w OffTarget, Tier III Bin II:", nrow(subset(lib, `#.Off-Target.Tier.III.Match.Bin.II.Matches`>0)) ))
+  print(paste("#GDO w OffTarget, Tier I Bin II:", nrow(subset(lib, `#.Off-Target.Tier.I.Match.Bin.II.Matches`>0)) ))
+  print(paste("#GDO w OffTarget, Tier II Bin II:", nrow(subset(lib, `#.Off-Target.Tier.II.Match.Bin.II.Matches`>0)) ))
+  print(paste("#GDO w OffTarget, Tier III Bin II:", nrow(subset(lib, `#.Off-Target.Tier.III.Match.Bin.II.Matches`>0)) ))
 }
 
 qcPercRegOff <- function(lib){
-  print(paste("%Reg OffTarget, Tier I Bin I:", nrow(subset(lib, `#.Off-Target.Tier.I.Match.Bin.I.Matches`>0))/nrow(lib) ))
-  print(paste("%Reg OffTarget, Tier II Bin I:", nrow(subset(lib, `#.Off-Target.Tier.II.Match.Bin.I.Matches`>0))/nrow(lib) ))
-  print(paste("%Reg OffTarget, Tier III Bin I:", nrow(subset(lib, `#.Off-Target.Tier.III.Match.Bin.I.Matches`>0))/nrow(lib) ))
+  print(paste("%GDO OffTarget, Tier I Bin I:", nrow(subset(lib, `#.Off-Target.Tier.I.Match.Bin.I.Matches`>0))/nrow(lib) ))
+  print(paste("%GDO OffTarget, Tier II Bin I:", nrow(subset(lib, `#.Off-Target.Tier.II.Match.Bin.I.Matches`>0))/nrow(lib) ))
+  print(paste("%GDO OffTarget, Tier III Bin I:", nrow(subset(lib, `#.Off-Target.Tier.III.Match.Bin.I.Matches`>0))/nrow(lib) ))
   
-  print(paste("%Reg OffTarget, Tier I Bin II:", nrow(subset(lib, `#.Off-Target.Tier.I.Match.Bin.II.Matches`>0))/nrow(lib) ))
-  print(paste("%Reg OffTarget, Tier II Bin II:", nrow(subset(lib, `#.Off-Target.Tier.II.Match.Bin.II.Matches`>0))/nrow(lib) ))
-  print(paste("%Reg OffTarget, Tier III Bin II:", nrow(subset(lib, `#.Off-Target.Tier.III.Match.Bin.II.Matches`>0))/nrow(lib) ))
+  print(paste("%GDO OffTarget, Tier I Bin II:", nrow(subset(lib, `#.Off-Target.Tier.I.Match.Bin.II.Matches`>0))/nrow(lib) ))
+  print(paste("%GDO OffTarget, Tier II Bin II:", nrow(subset(lib, `#.Off-Target.Tier.II.Match.Bin.II.Matches`>0))/nrow(lib) ))
+  print(paste("%GDO OffTarget, Tier III Bin II:", nrow(subset(lib, `#.Off-Target.Tier.III.Match.Bin.II.Matches`>0))/nrow(lib) ))
 }
 
 qcStrand <- function(lib){
