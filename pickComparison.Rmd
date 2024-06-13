@@ -13,9 +13,11 @@ pacman::p_load(openxlsx, dplyr, tidyr, reshape2, stringr)
 library(GenomicRanges)
 
 source('libraryDesignFunctions.R')
+# debug(assembleLibrary) # undebug(assembleLibrary)
+# debug(pickTopGDO) # undebug(pickTopGDO)
 ```
 
-# Directory Info
+# Set Directory Info
 ```{r}
 wd <- getwd()
 wd # verify directory location
@@ -23,6 +25,10 @@ wd # verify directory location
 # Set universal directories:
 dirRegion <- paste0(wd,"//preprocessed//")
 dirGDO <- paste0(wd, "//preprocessed//")
+
+snpList <- unique(read.xlsx(paste0(wd,"//input//snp_loc_hg19.xlsx")))
+rownames(snpList) <- NULL
+snpList$chr <- as.character(snpList$chr)
 ```
 # Library Construction
 
@@ -36,94 +42,211 @@ Comparisons:
 * w/ or w/o overlap leniency
 * pick 50 vs pick 30
 
-
-## Pick 30 vs Pick 50
-Use 5 guides + CRISPRi as the baseline
+# Comparisons
+## CRISPRi vs CRISPRa
+Use CRISPRi guides going forward. More off-target hits are picked up. See ppt for full reasoning.
 ```{r}
-regionList <- c("regions200", "regions300", "regions400", "regions500", "regions600")
+GDOraw30i <- read.xlsx(paste0(wd,"//preprocessed//","200bp_i30.xlsx"))
+GDOraw30a <- read.xlsx(paste0(wd,"//preprocessed//","200bp_a30.xlsx"))
 
-fileList30 <- c("200bp_i30","300bp_i30","400bp_i30","500bp_i30","600bp_i30")
-fileList50 <- c("200bp_i50","300bp_i50","400bp_i50","500bp_i50","600bp_i50")
+GDOraw50i <- read.xlsx(paste0(wd,"//preprocessed//","200bp_i50.xlsx"))
+GDOraw50a <- read.xlsx(paste0(wd,"//preprocessed//","200bp_a50.xlsx"))
 
-GDO30 <- assembleLibrary(5, fileList30, regionList, dirGDO, dirRegion)
-GDO50 <- assembleLibrary(5, fileList50, regionList, dirGDO, dirRegion)
-
-qc(GDO30)
-qc(GDO50)
+qcSumOff(GDOraw30i)
+qcSumOff(GDOraw30a)
+qcSumOff(GDOraw50i)
+qcSumOff(GDOraw50a)
 ```
 
-```{r}
-regionList <- c("regions200", "regions300", "regions400", "regions500", "regions600")
+## Initial Region: 200 or 300bp?
 
-fileList30 <- c("200bp_i30","300bp_i30","400bp_i30","500bp_i30","600bp_i30")
-fileList50 <- c("200bp_i50","300bp_i50","400bp_i50","500bp_i50","600bp_i50")
-
-GDO30 <- assembleLibrary(5, fileList30, regionList, dirGDO, dirRegion, onTargetFilter = 0.2)
-GDO50 <- assembleLibrary(5, fileList50, regionList, dirGDO, dirRegion, onTargetFilter = 0.2)
-
-qc(GDO30)
-qc(GDO50)
-```
-## With or Without On-Target Filter
-```{r}
-regionList <- c("regions200", "regions300", "regions400", "regions500", "regions600")
-
-fileListi <- c("200bp_i50","300bp_i50","400bp_i50","500bp_i50","600bp_i50")
-
-GDObase <- assembleLibrary(5, fileListi, regionList, dirGDO, dirRegion)
-GDOFilter <- assembleLibrary(5, fileListi, regionList, dirGDO, dirRegion, onTargetFilter = 0.2)
-
-qc(GDObase)
-qc(GDOFilter)
-```
-
-
-
-## Compare CRISPRi vs CRISPRa
-, no other filters
-```{r}
-regionList <- c("regions200", "regions300", "regions400", "regions500", "regions600")
-
-fileListi <- c("200bp_i50","300bp_i50","400bp_i50","500bp_i50","600bp_i50")
-fileLista <- c("200bp_a50","300bp_a50","400bp_a50","500bp_a50","600bp_a50")
-
-GDOi <- assembleLibrary(5, fileListi, regionList, dirGDO, dirRegion)
-GDOa <- assembleLibrary(5, fileLista, regionList, dirGDO, dirRegion)
-
-qc(GDOi)
-qc(GDOa)
-```
-
+## Comparing initial region
 
 ```{r}
-# regionInit <- "regions200"
-regionList <- c("regions200", "regions300", "regions400", "regions500", "regions600")
+
+regionList200 <- c("regions200", "regions300", "regions400", "regions500", "regions600")
+regionList300 <- c("regions300", "regions400", "regions500", "regions600")
+
+
 fileList <- c("200bp_i50","300bp_i50","400bp_i50","500bp_i50","600bp_i50")
 
-numGDO <- 5
-
-
-onTargetFilter <- 0.2
-pickByStrand <- FALSE
-
-GDOlib3 <- assembleLibrary(3, fileList, regionList, dirGDO, dirRegion,
+GDO1 <- assembleLibrary(3, fileList, regionList200, dirGDO, dirRegion,
                           onTargetFilter = 0.2, pickByStrand = TRUE, overlapLeniency=1)
-GDOlib5 <- assembleLibrary(5, fileList, regionList, dirGDO, dirRegion,
-                          onTargetFilter = 0.2)
+GDO2 <- assembleLibrary(3, fileList, regionList300, dirGDO, dirRegion,
+                          onTargetFilter = 0.2, pickByStrand = TRUE, overlapLeniency=1)
 
-qc(GDOlib3)
-qc(GDOlib5)
+qcSimple(GDO1)
+qcSumRegOff(GDO1)
+print(mean(calcDistGDOtoSNP(snpList, GDO1)$distance))
+
+qcSimple(GDO2)
+qcSumRegOff(GDO2)
+print(mean(calcDistGDOtoSNP(snpList, GDO2)$distance))
+
+diff1 <- anti_join(GDO1, GDO2, by="sgRNA.Sequence")
+diff2 <- anti_join(GDO2, GDO1, by="sgRNA.Sequence")
+
+sim <- inner_join(GDO1, GDO2, by="sgRNA.Sequence")
+
+sim1 <- semi_join(GDO1, GDO2, by="sgRNA.Sequence")
+sim2 <- semi_join(GDO2, GDO1, by="sgRNA.Sequence")
+
+GDOunique <- unique(GDO2)
+
+hist(calcDistGDOtoSNP(snpList, GDO1)$distance)
+hist(calcDistGDOtoSNP(snpList, GDO2)$distance)
+
+
+```
+Compare distance vs knock down for our previous screen.
+See "Sensitivity Analysis.xlsx" and ppt for elaboration.
+Conclusions: closer is better. Will use regions200 as initial library condition.
+```{r}
+GDO600_50i <- read.xlsx(paste0(wd,"//preprocessed//","600bp_i50.xlsx"))
+
+gdo_list <- read.xlsx(paste0(wd,"//input//CRISPRV_08012209MN Bioinformatics.xlsx"))
+
+# gdo <- gdo_list %>%
+  # mutate(grna_id = gsub(",","|", str_split_i(gdo_list$CloneId,"\\+",1) )
+         # first, str_split_i() splits the CloneId string and returns the GDO name
+         # next, gsub() replaces all "," with "|" to match SCEPTRE output
+  # )
+# gdo <- gdo %>%
+  # select(grna_id, Seq)
+
+names(gdo)[names(gdo) == 'Seq'] <- 'sgRNA.Sequence'
+
+
+gdo_m <- left_join(gdo, GDO600_50i, by="sgRNA.Sequence") #join_by("Seq" == "sgRNA.Sequence")
+gdo_m <- na.omit(gdo_m)
+```
+
+```{r}
+gdo_m <- calcDistGDOtoSNP(snpList, gdo_m)
+gdo_m <- subset(gdo_m, select = -c(`chr`)) # drop one of the chr columns..
+names(gdo_m)
+
+gdo_m <- left_join(gdo_m, gdo, by="sgRNA.Sequence")
+```
+
+## Picking 30 vs 50 guides
+IDENTICAL
+Use quota from 30.
+```{r}
+
+regionList <- c("regions200", "regions300", "regions400", "regions500", "regions600")
+
+fileList30 <- c("200bp_i30","300bp_i30","400bp_i30","500bp_i30","600bp_i30")
+fileList50 <- c("200bp_i50","300bp_i50","400bp_i50","500bp_i50","600bp_i50")
+
+GDO1 <- assembleLibrary(3, fileList30, regionList, dirGDO, dirRegion,
+                          onTargetFilter = 0.2, pickByStrand = TRUE, overlapLeniency=1)
+GDO2 <- assembleLibrary(3, fileList50, regionList, dirGDO, dirRegion,
+                          onTargetFilter = 0.2, pickByStrand = TRUE, overlapLeniency=1)
+
+qcSimple(GDO1)
+qcSumRegOff(GDO1)
+print(mean(calcDistGDOtoSNP(snpList, GDO1)$distance))
+
+qcSimple(GDO2)
+qcSumRegOff(GDO2)
+print(mean(calcDistGDOtoSNP(snpList, GDO2)$distance))
+
+diff1 <- anti_join(GDO1, GDO2, by="sgRNA.Sequence")
+diff2 <- anti_join(GDO2, GDO1, by="sgRNA.Sequence")
+
+sim <- inner_join(GDO1, GDO2, by="sgRNA.Sequence")
+
+sim1 <- semi_join(GDO1, GDO2, by="sgRNA.Sequence")
+sim2 <- semi_join(GDO2, GDO1, by="sgRNA.Sequence")
+
+GDOunique <- unique(GDO2)
+
+hist(calcDistGDOtoSNP(snpList, GDO1)$distance)
+hist(calcDistGDOtoSNP(snpList, GDO2)$distance)
+
 
 ```
 
+## Try different overlap leniencies
+```{r}
+regionList <- c("regions200", "regions300", "regions400", "regions500", "regions600")
+
+fileList <- c("200bp_i30","300bp_i30","400bp_i30","500bp_i30","600bp_i30")
+
+GDO0 <- assembleLibrary(3, fileList, regionList, dirGDO, dirRegion,
+                          onTargetFilter = 0.2, pickByStrand = TRUE, overlapLeniency=0)
+GDO1 <- assembleLibrary(3, fileList, regionList, dirGDO, dirRegion,
+                          onTargetFilter = 0.2, pickByStrand = TRUE, overlapLeniency=1)
+GDO2 <- assembleLibrary(3, fileList, regionList, dirGDO, dirRegion,
+                          onTargetFilter = 0.2, pickByStrand = TRUE, overlapLeniency=2)
+GDO3 <- assembleLibrary(3, fileList, regionList, dirGDO, dirRegion,
+                          onTargetFilter = 0.2, pickByStrand = TRUE, overlapLeniency=3)
+
+qcSimple(GDO0)
+qcSumRegOff(GDO0)
+print(mean(calcDistGDOtoSNP(snpList, GDO0)$distance))
+
+qcSimple(GDO1)
+qcSumRegOff(GDO1)
+print(mean(calcDistGDOtoSNP(snpList, GDO1)$distance))
+
+qcSimple(GDO2)
+qcSumRegOff(GDO2)
+print(mean(calcDistGDOtoSNP(snpList, GDO2)$distance))
+
+qcSimple(GDO3)
+qcSumRegOff(GDO3)
+print(mean(calcDistGDOtoSNP(snpList, GDO3)$distance))
+
+
+GDOunique <- unique(GDO2)
+
+hist(calcDistGDOtoSNP(snpList, GDO0)$distance)
+hist(calcDistGDOtoSNP(snpList, GDO1)$distance)
+hist(calcDistGDOtoSNP(snpList, GDO2)$distance)
+hist(calcDistGDOtoSNP(snpList, GDO3)$distance)
+
+diff10 <- anti_join(GDO1, GDO0, by="sgRNA.Sequence") 
+diff20 <- anti_join(GDO2, GDO0, by="sgRNA.Sequence")
+diff30 <- anti_join(GDO3, GDO0, by="sgRNA.Sequence")
+
+diff01 <- anti_join(GDO0, GDO1, by="sgRNA.Sequence") 
+diff02 <- anti_join(GDO0, GDO2, by="sgRNA.Sequence")
+diff03 <- anti_join(GDO0, GDO3, by="sgRNA.Sequence")
+
+qcSimple(diff10)
+qcSumRegOff(diff10)
+print(mean(calcDistGDOtoSNP(snpList, diff10)$distance))
+
+qcSimple(diff01)
+qcSumRegOff(diff01)
+print(mean(calcDistGDOtoSNP(snpList, diff01)$distance))
+
+qcSimple(diff20)
+qcSumRegOff(diff20)
+print(mean(calcDistGDOtoSNP(snpList, diff20)$distance))
+
+qcSimple(diff02)
+qcSumRegOff(diff02)
+print(mean(calcDistGDOtoSNP(snpList, diff02)$distance))
+
+
+```
+# Unit Test
+```{r}
+
+regionList <- c("regions200", "regions300", "regions400", "regions500", "regions600")
+fileList <- c("200bp_i30","300bp_i30","400bp_i30","500bp_i30","600bp_i30")
+finalLib <- assembleLibrary(3, fileList, regionList, dirGDO, dirRegion,
+                          onTargetFilter = 0.2, pickByStrand = TRUE, overlapLeniency=2)
+
+uniqueGDO <- unique(finalLib)
+nrow(uniqueGDO) == nrow(finalLib)
+
+overlap <- findSelfOverlap(finalLib, "chr", "start","end", selfBool=TRUE)
+overlapLenient <- findSelfOverlap(finalLib, "chr", "startL","endL", selfBool=TRUE)
 
 
 
-
-
-
-
-
-
-
-
+```
