@@ -384,7 +384,11 @@ assembleLibrary <- function(numGDO, fileList, regionList, dirGDO, dirRegion,
       GDO <- read.xlsx(paste0(dirGDO, file, ".xlsx"))
       
       if (onTargetFilter > -100){ # the values for this aren't straightforward.. # REFACTOR
-        GDO <- subset(GDO, `On-Target.Efficacy.Score` > onTargetFilter)
+        GDO <- filterGDO(GDO, GCbool = FALSE, Tbool = FALSE, minOnScore = onTargetFilter)
+        if ("n" %in% names(GDO)){
+          GDO <- subset(GDO, select = -c(n))
+          GDO$n <- as.numeric(rownames(GDO))
+        }
       }
       
       # Choose overlap leniency (or lack thereof)
