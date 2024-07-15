@@ -87,6 +87,108 @@ write.xlsx(targetGDO, file = paste0(wd, "//output//finalTargetGDOi30.xlsx"))
 # targetGDO <- read.xlsx(paste0(wd,"//output//finalTargetGDOi30.xlsx"))
 ```
 
+# Substituting in some working guides from the pilot library
+Add/drop of GDOs is based on finalTargetGDOi30.xlsx.
+
+Load list of target GDOs
+```{r}
+wd <- getwd()
+wd # verify directory location
+
+targetGDO <- read.xlsx(paste0(wd,"//output//finalTargetGDOi30.xlsx"))
+```
+
+
+Regions for rs1870138|rs7080009 and rs1870137 are ~50bp away from each other. Let's combine them.
+We can reuse the guides from the Pilot Screen.
+
+```{r}
+# TSPAN14 3x SNP region:
+# 1) remove sequences:
+# AAGGAGGATTGCAGCTGGTA, ACAAGAGCCTTGCATTGCAC, TCCCTGGAATATGTGCCCAG
+removeGDO <- c("AAGGAGGATTGCAGCTGGTA", "ACAAGAGCCTTGCATTGCAC", "TCCCTGGAATATGTGCCCAG")
+targetGDO <- subset(targetGDO, !(sgRNA.Sequence %in% removeGDO))
+
+# 2) Change region name to rs1870137|rs1870138|rs7080009 for seqs:
+# CTTAGGCGCTGCATACCGTA, GGAACAAGCCACTCCACCTC, GAACTGCTTAGACAAACCCC
+keepGDO <- c("CTTAGGCGCTGCATACCGTA", "GGAACAAGCCACTCCACCTC", "GAACTGCTTAGACAAACCCC")
+targetGDO <- targetGDO %>%
+  mutate(SNP = ifelse(sgRNA.Sequence %in% keepGDO, "rs1870137|rs1870138|rs7080009", SNP))
+```
+
+For rs9633740, the best performing guide from the pilot screen is already included.
+
+For rs8019279,rs8019585,rs8003334 we have already tested all three guides in the new library. Let's remove the worst performing guide.
+
+```{r}
+# Remove the bad performing guide
+targetGDO <- subset(targetGDO, sgRNA.Sequence != "AGAACAATAAAAACTACGGT")
+
+# Load Guide Pool, subset for region of interest, remove guide that you don't want from the pool and repick.
+guidePool <- read.xlsx(paste0(wd, "//preprocessed//200bp_i30.xlsx"))
+guidePool <- subset(guidePool, (SNP == "rs8003334|rs8019279|rs8019585")&(sgRNA.Sequence != "AGAACAATAAAAACTACGGT")&(Orientation=="antisense"))
+guidePool <- filterGDO(guidePool, minOnScore = 0.2)
+
+# Not a lot of guides, try slightly expanded region.
+guidePool <- read.xlsx(paste0(wd, "//preprocessed//400bp_i30.xlsx"))
+guidePool <- subset(guidePool, (SNP == "rs8003334|rs8019279|rs8019585")&(sgRNA.Sequence != "AGAACAATAAAAACTACGGT")&(Orientation=="antisense"))
+guidePool <- filterGDO(guidePool, minOnScore = 0.2)
+
+# Add this one (antisense): TGGAACTCTCAAGTACTGCC
+targetGDO <- bind_rows(targetGDO, subset(guidePool, sgRNA.Sequence=="ACAGGTCTTTGTGGGAACAT"))
+
+```
+
+rs4318227 - adding the guide that downregulated 3 genes in pilot.
+
+```{r}
+# Remove the least interesting guide
+# ACTGCGCGCAGGGTGGAAGT
+removeGDO <- c("ACTGCGCGCAGGGTGGAAGT")
+targetGDO <- subset(targetGDO, !(sgRNA.Sequence %in% removeGDO))
+
+# Add in the guide that hit 3 genes
+guidePool <- read.xlsx(paste0(wd, "//preprocessed//400bp_i30.xlsx"))
+guidePool <- subset(guidePool, (SNP == "rs4318227"))
+guidePool <- filterGDO(guidePool, minOnScore = 0.2)
+
+targetGDO <- bind_rows(targetGDO, subset(guidePool, sgRNA.Sequence=="AGAGCTAGACTTGCAAGGGG"))
+
+```
+
+rs1549299 - adding the guide that hit VKORC1 strongly in the 500kb cis analysis
+```{r}
+# Removing the worst pick order ranked guide
+targetGDO <- subset(targetGDO, sgRNA.Sequence != "TCCGGGTGGGGTAGGCACAC")
+
+guidePool <- read.xlsx(paste0(wd, "//preprocessed//400bp_i30.xlsx"))
+targetGDO <- bind_rows(targetGDO, subset(guidePool, sgRNA.Sequence=="GCCAAGCGCGGGTTCTGGAA"))
+```
+
+rs927174 - adding guide that hit RTF2
+```{r}
+# GTTCTATGTCTTGTAGCCCA
+targetGDO <- subset(targetGDO, sgRNA.Sequence != "GTTCTATGTCTTGTAGCCCA")
+
+guidePool <- read.xlsx(paste0(wd, "//preprocessed//400bp_i30.xlsx"))
+targetGDO <- bind_rows(targetGDO, subset(guidePool, sgRNA.Sequence=="AGCATGCCAGGCCTAGATCG"))
+```
+
+rs10838702 - adding guide that hit ACP2
+```{r}
+targetGDO <- subset(targetGDO, sgRNA.Sequence != "TTGGGCTTCAGCTTGAGGAC")
+
+guidePool <- read.xlsx(paste0(wd, "//preprocessed//400bp_i30.xlsx"))
+targetGDO <- bind_rows(targetGDO, subset(guidePool, sgRNA.Sequence=="TCTGCAGAATGGCACTGACA"))
+```
+
+Next: add the region targeting the del
+
+```{r}
+write.xlsx(targetGDO, file = paste0(wd, "//output//finalTargetGDOi30_wPilot.xlsx"))
+```
+
+
 # Updating Positive Controls
 We submitted a list of interesting genes to CRISPick to design promoter targeting control guides.
 Next, we want to:
