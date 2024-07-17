@@ -183,3 +183,11 @@ qcSimple(targetGDO)
 qcSumOff(targetGDO)
 orient <- qcStrand(targetGDO)
 ```
+
+Export guide list:
+```{r}
+write.xlsx(targetGDO, file = paste0(wd, "//output//finalAdtlTargetGDOi30.xlsx"))
+
+# targetGDO <- read.xlsx(paste0(wd,"//output//finalTargetGDOi30.xlsx"))
+```
+
