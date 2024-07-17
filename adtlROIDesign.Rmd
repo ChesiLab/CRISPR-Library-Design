@@ -1,0 +1,185 @@
+---
+title: "adtlROIDesign"
+output: html_notebook
+---
+
+Will combine preprocessing + guide selection in one file.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+if(!require('pacman')) {install.packages('pacman')}
+pacman::p_load(openxlsx, dplyr, tidyr, reshape2, stringr)
+
+# BiocManager::install("GenomicRanges")
+library(GenomicRanges)
+
+source('libraryDesignFunctions.R')
+```
+
+# Preprocessing for CRISPick
+
+```{r}
+# Load Data
+  
+wd <- getwd()
+wd # verify directory location
+
+# Load all SNPs.
+snp_list <- unique(read.xlsx(paste0(wd,"//input//adtlROIhg19.xlsx")))
+rownames(snp_list) <- NULL
+snp_list$chr <- as.character(snp_list$chr)
+
+# Get refseq conversion for chromosome numbers. Needed for compatibility with CRISPick
+refseqLookup <- read.delim(paste0(wd,"//input//seq_report_hg19.tsv"))
+refseqLookup <- subset(refseqLookup, Role=="assembled-molecule")
+
+# Rename columns for convenience
+names(refseqLookup)[names(refseqLookup)=="Chromosome.name"] <- "chr"
+names(refseqLookup)[names(refseqLookup)=="RefSeq.seq.accession"] <- "refseq"
+refseqLookup <- refseqLookup %>%
+  select(chr, refseq)
+  
+# -----------------------------------------------------------------------------
+# Preprocess Input for CRISPick
+
+# Combine nearby SNP regions.
+# Use 200bp for first pass. Expand region size for any 200bp regions 
+# that don't have enough good quality guides.
+regions200 <- findSnpRegions(200, snp_list)
+regions300 <- findSnpRegions(300, snp_list)
+regions400 <- findSnpRegions(400, snp_list)
+
+# Convert to CRISPick format
+regions200 <- formatCrispick(regions200, refseqLookup)
+regions300 <- formatCrispick(regions300, refseqLookup)
+regions400 <- formatCrispick(regions400, refseqLookup)
+
+# Only need the 'crispick' column to run CRISPick for library design.
+crispick200Input <- regions200 %>% select(crispick)
+crispick300Input <- regions300 %>% select(crispick)
+crispick400Input <- regions400 %>% select(crispick)
+  
+# -----------------------------------------------------------------------------
+# Export SNP regions as regions file and in fasta file for CRISPick Input.
+
+# Save SNP regions
+write.xlsx(regions200, file = paste0(wd, "//preprocessed//adtlRegions200.xlsx"))
+write.xlsx(regions300, file = paste0(wd, "//preprocessed//adtlRegions300.xlsx"))
+write.xlsx(regions400, file = paste0(wd, "//preprocessed//adtlRegions400.xlsx"))
+
+# Save CRISPick Inputs
+write.table(crispick200Input, paste0(wd, "//preprocessed//adtlLoc200.fasta"), 
+            row.names=FALSE, col.names=FALSE, quote=FALSE)
+write.table(crispick300Input, paste0(wd, "//preprocessed//adtlLoc300.fasta"), 
+            row.names=FALSE, col.names=FALSE, quote=FALSE)
+write.table(crispick400Input, paste0(wd, "//preprocessed//adtlLoc400.fasta"), 
+            row.names=FALSE, col.names=FALSE, quote=FALSE)
+
+```
+
+# Preprocess the raw CRISPick Output
+
+```{r}
+wd <- getwd()
+
+# Import refseq vs chromosome number lookup.
+refseqLookup <- read.xlsx(paste0(wd, "//input//refseqLookup.xlsx"))
+
+# Import SNP-to-region annotations.
+regions200 <- read.xlsx(paste0(wd,"//preprocessed//adtlRegions200.xlsx"))
+regions300 <- read.xlsx(paste0(wd,"//preprocessed//adtlRegions300.xlsx"))
+regions400 <- read.xlsx(paste0(wd,"//preprocessed//adtlRegions400.xlsx"))
+
+# Indicate columns of interest.
+# Re: Num. of Off-Target hits:
+# Tier I - coding genes
+# Tier II - non-coding genes
+# Tier III - all other regions
+# Bin I - perfect match
+# Bin II - ~a few mismatched bases
+
+keepCol <- c("Input", "Reference.Sequence", "Orientation", "sgRNA.'Cut'.Position",  
+             "sgRNA.Sequence", "sgRNA.Context.Sequence", "On-Target.Efficacy.Score",
+             "#.Off-Target.Tier.I.Match.Bin.I.Matches", "#.Off-Target.Tier.II.Match.Bin.I.Matches",
+             "#.Off-Target.Tier.III.Match.Bin.I.Matches", "#.Off-Target.Tier.I.Match.Bin.II.Matches",
+             "#.Off-Target.Tier.II.Match.Bin.II.Matches", "#.Off-Target.Tier.III.Match.Bin.II.Matches",
+             "On-Target.Rank", "Off-Target.Rank",
+             "Pick.Order")
+# >>> add smth for OFF-targets
+
+# Get filenames of CRISPick outputs.
+setwd(paste0(wd,'\\crispick_output'))
+file_list <- list.files(pattern= "^adtl_sgrna_cre.*\\.xlsx$")
+```
+```{r}
+# Loop through all files from CRISPick output.
+for (file in file_list){
+  # Import CRISPick Output
+  GDOraw <- read.xlsx(paste0(wd,"//crispick_output//",file))
+  
+  # Keep important columns.
+  GDOout <- select(GDOraw, all_of(keepCol))
+  
+  # Filter GC %, TTTT, On-Target Efficacy > 0.2
+  GDOout <- filterGDO(GDOout)
+  
+  # Add GDO Locations: chromosome # + start/end coordinates.
+  GDOout <- addGDOLoc(GDOout, refseqLookup)
+  
+  # Add the SNP region.
+  if (grepl("200", file)){
+    GDOout <- left_join(GDOout, select(regions200, SNP, crispick), join_by("Input"=="crispick"))
+    GDOout$regWidth <- 200
+  } else if (grepl("300", file)){
+    GDOout <- left_join(GDOout, select(regions300, SNP, crispick), join_by("Input"=="crispick"))
+    GDOout$regWidth <- 300
+  } else if (grepl("400", file)){
+    GDOout <- left_join(GDOout, select(regions400, SNP, crispick), join_by("Input"=="crispick"))
+    GDOout$regWidth <- 400
+  }
+  
+  # Add rownumber for reference later.
+  GDOout$n <- as.numeric(rownames(GDOout))
+  
+  # Export preprocessed GDO pools.
+  # Filename is substring of CRISPick output file name:
+  # i.e. output "600bp_i50.xlsx" as derived from "sgrna_cre_600bp_i50.xlsx"
+  write.xlsx(GDOout, file = paste0(wd, "//preprocessed//","adtl", sub("^adtl_sgrna_cre_(.*)$", "\\1", file)))
+}
+```
+
+# Library Assembly
+
+## Set Directory Information
+```{r}
+wd <- getwd()
+wd # verify directory location
+
+# Set universal directories:
+dirRegion <- paste0(wd,"//preprocessed//")
+dirGDO <- paste0(wd, "//preprocessed//")
+
+snpList <- unique(read.xlsx(paste0(wd,"//input//adtlROIhg19.xlsx")))
+rownames(snpList) <- NULL
+snpList$chr <- as.character(snpList$chr)
+```
+## Assemble Library
+
+```{r}
+regionList <- c("adtlRegions200", "adtlRegions300", "adtlRegions400")
+fileList <- c("adtl200bp_i30","adtl300bp_i30","adtl400bp_i30")
+targetGDO <- assembleLibrary(3, fileList, regionList, dirGDO, dirRegion,
+                          onTargetFilter = 0.2, pickByStrand = TRUE, overlapLeniency=2)
+
+uniqueGDO <- unique(targetGDO)
+nrow(uniqueGDO) == nrow(targetGDO)
+
+overlap <- findSelfOverlap(targetGDO, "chr", "start","end", selfBool=TRUE)
+overlapLenient <- findSelfOverlap(targetGDO, "chr", "startL","endL", selfBool=TRUE)
+```
+```{r}
+qcSimple(targetGDO)
+qcSumOff(targetGDO)
+orient <- qcStrand(targetGDO)
+```
