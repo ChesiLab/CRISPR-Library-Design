@@ -87,7 +87,8 @@ write.xlsx(targetGDO, file = paste0(wd, "//output//finalTargetGDOi30.xlsx"))
 # targetGDO <- read.xlsx(paste0(wd,"//output//finalTargetGDOi30.xlsx"))
 ```
 
-# Substituting in some working guides from the pilot library
+# Substituting in Working Guides from the Pilot
+
 Add/drop of GDOs is based on finalTargetGDOi30.xlsx.
 
 Load list of target GDOs
