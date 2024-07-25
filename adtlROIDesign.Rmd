@@ -112,6 +112,7 @@ keepCol <- c("Input", "Reference.Sequence", "Orientation", "sgRNA.'Cut'.Position
 setwd(paste0(wd,'\\crispick_output'))
 file_list <- list.files(pattern= "^adtl_sgrna_cre.*\\.xlsx$")
 ```
+
 ```{r}
 # Loop through all files from CRISPick output.
 for (file in file_list){
@@ -169,6 +170,32 @@ snpList$chr <- as.character(snpList$chr)
 ```{r}
 regionList <- c("adtlRegions200", "adtlRegions300", "adtlRegions400")
 fileList <- c("adtl200bp_i30","adtl300bp_i30","adtl400bp_i30")
+adtlGDO <- assembleLibrary(3, fileList, regionList, dirGDO, dirRegion,
+                          onTargetFilter = 0.2, pickByStrand = TRUE, overlapLeniency=2)
+
+uniqueGDO <- unique(adtlGDO)
+nrow(uniqueGDO) == nrow(adtlGDO)
+
+overlap <- findSelfOverlap(adtlGDO, "chr", "start","end", selfBool=TRUE)
+overlapLenient <- findSelfOverlap(adtlGDO, "chr", "startL","endL", selfBool=TRUE)
+```
+```{r}
+qcSimple(adtlGDO)
+qcSumOff(adtlGDO)
+orient <- qcStrand(adtlGDO)
+```
+# Pick Guides for (bad) Neighboring Regions
+Combine rs4989024 with rs1317708|rs874424
+Combine rs2287322 with rs8077638|rs34962442|rs62090051
+
+Use regions300 as the starting list.
+Combined region names:
+rs1317708|rs4989024|rs874424
+rs2287322|rs8077638|rs34962442|rs62090051
+
+```{r}
+regionList <- c("regions300", "regions400")
+fileList <- c("300bp_i30","400bp_i30")
 targetGDO <- assembleLibrary(3, fileList, regionList, dirGDO, dirRegion,
                           onTargetFilter = 0.2, pickByStrand = TRUE, overlapLeniency=2)
 
@@ -177,16 +204,24 @@ nrow(uniqueGDO) == nrow(targetGDO)
 
 overlap <- findSelfOverlap(targetGDO, "chr", "start","end", selfBool=TRUE)
 overlapLenient <- findSelfOverlap(targetGDO, "chr", "startL","endL", selfBool=TRUE)
+
+combinedReg <- c("rs1317708|rs4989024|rs874424", "rs2287322|rs8077638|rs34962442|rs62090051")
+
+combinedGDO <- subset(targetGDO, SNP %in% combinedReg)
 ```
+
+
 ```{r}
-qcSimple(targetGDO)
-qcSumOff(targetGDO)
-orient <- qcStrand(targetGDO)
+targetGDO <- read.xlsx(paste0(wd,"//output//finalTargetGDOi30_remBadReg.xlsx"))
+
+targetGDO <- rbind(targetGDO, combinedGDO, adtlGDO)
 ```
+
+
 
 Export guide list:
 ```{r}
-write.xlsx(targetGDO, file = paste0(wd, "//output//finalAdtlTargetGDOi30.xlsx"))
+write.xlsx(targetGDO, file = paste0(wd, "//output//finalAllTargetGDOi30.xlsx"))
 
 # targetGDO <- read.xlsx(paste0(wd,"//output//finalTargetGDOi30.xlsx"))
 ```
