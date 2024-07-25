@@ -1,0 +1,96 @@
+---
+title: "Postprocess to Order"
+author: Shannon Laub
+description: Postprocessing of all designed guides of interest into a format for ordering the library.
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+if(!require('pacman')) {install.packages('pacman')}
+pacman::p_load(openxlsx, dplyr, tidyr, reshape2, stringr)
+
+```
+
+# Load Relevant Libraries
+```{r}
+wd <- getwd()
+wd
+
+target <- read.xlsx(paste0(wd,"//output//finalTargetGDOi30_wPilot.xlsx"))
+promoter <- read.xlsx(paste0(wd,"//output//finalPromoterGDOa30.xlsx"))
+adtl <- read.xlsx(paste0(wd,"//output//finalAdtlTargetGDOi30.xlsx"))
+ntc <- read.xlsx(paste0(wd,"//crispick_output//sgrna_designs_NTC_i30.xlsx"))
+
+```
+
+Create a "guide number" based on the pick order and off-target rank
+
+```{r}
+targetFinal <- target %>%
+  group_by(SNP) %>% #Some guides are from different sized regions, do NOT use Input to group
+  arrange(Pick.Order, `On-Target.Rank`, `Off-Target.Rank`, .by_group = TRUE) %>%
+  mutate(Final.Rank = row_number(),
+         ID = paste(SNP,Final.Rank, sep="_")) %>%
+  ungroup() %>%
+  select(ID, sgRNA.Sequence, Orientation, chr, start, end)
+
+
+promFinal <- promoter %>%
+  group_by(Input) %>%
+  arrange(Pick.Order, .by_group = TRUE) %>%
+  mutate(Final.Rank = row_number(),
+         ID = paste(Input,Final.Rank, sep="_")) %>%
+  ungroup() %>%
+  select(ID, sgRNA.Sequence, Orientation, chr, start, end)
+
+adtlFinal <- adtl %>%
+  group_by(SNP) %>% #Some guides are from different sized regions, do NOT use Input to group
+  arrange(Pick.Order, `On-Target.Rank`, `Off-Target.Rank`, .by_group = TRUE) %>%
+  mutate(Final.Rank = row_number(),
+         ID = paste(SNP,Final.Rank, sep="_")) %>%
+  ungroup() %>%
+  select(ID, sgRNA.Sequence, Orientation, chr, start, end)
+
+ntcFinal <- ntc %>%
+  mutate(ID = paste("NTC", row_number(), sep="_")) %>%
+  select(ID, sgRNA.Sequence, `#.Off-Target.Tier.III.Match.Bin.IV.Matches`)
+```
+
+# Combine all targeting + pos ctrl guides to create QC track for UCSC Genome Browser
+```{r}
+targetUCSC <- rbind(promFinal, targetFinal, adtlFinal) %>%
+  select(chr, start, end, ID)
+
+write.table(targetUCSC, paste0(wd,"//postprocessed//targetUCSC.txt"), sep = "\t", row.names=FALSE, col.names=FALSE, quote = FALSE)
+```
+
+Create lookup table for target regions.
+Load relevant region information
+```{r}
+regions200 <- read.xlsx(paste0(wd,"//preprocessed//regions200.xlsx"))
+adtlRegions200 <- read.xlsx(paste0(wd,"//preprocessed//adtlRegions200.xlsx"))
+
+allRegions200 <- rbind(regions200, adtlRegions200)
+
+allRegions200 <- allRegions200 %>%
+  mutate(UCSC = paste0("chr",chr,":",start,"-",end)) %>%
+  select(SNP, UCSC)
+
+write.xlsx(allRegions200, paste0(wd,"//postprocessed//regionsUCSC.xlsx"))
+```
+
+Create track for SNP locations
+```{r}
+snpLoc <- unique(read.xlsx(paste0(wd,"//input//snp_loc_hg19.xlsx")))
+
+snpUCSC <- snpLoc %>%
+  mutate(start = pos,
+         end = pos) %>%
+  select(chr, start, end, snp)
+
+write.table(snpUCSC, paste0(wd,"//postprocessed//snpUCSC.txt"), sep = "\t", row.names=FALSE, col.names=FALSE, quote = FALSE)
+
+```
+
+
