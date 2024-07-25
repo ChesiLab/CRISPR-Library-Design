@@ -183,12 +183,30 @@ guidePool <- read.xlsx(paste0(wd, "//preprocessed//400bp_i30.xlsx"))
 targetGDO <- bind_rows(targetGDO, subset(guidePool, sgRNA.Sequence=="TCTGCAGAATGGCACTGACA"))
 ```
 
-Next: add the region targeting the del
+See adtlRegions for the del region and repicking guides for two regions we are recombining.
 
 ```{r}
 write.xlsx(targetGDO, file = paste0(wd, "//output//finalTargetGDOi30_wPilot.xlsx"))
 ```
 
+# Removing guides to problem regions
+Will repick using the adtl guides script.
+Should remove 12 guides, we will repick 6.
+Combine rs4989024 with rs1317708|rs874424
+Combine rs2287322 with rs8077638|rs34962442|rs62090051
+
+
+regions300 definition will combine these guides like this.
+```{r}
+removeSNP <- c("rs4989024","rs1317708|rs874424", 
+            "rs2287322", "rs8077638|rs34962442|rs62090051")
+
+targetGDO <- subset(targetGDO, !(SNP %in% removeSNP) )
+```
+
+```{r}
+write.xlsx(targetGDO, file = paste0(wd, "//output//finalTargetGDOi30_remBadReg.xlsx"))
+```
 
 # Updating Positive Controls
 We submitted a list of interesting genes to CRISPick to design promoter targeting control guides.
