@@ -212,7 +212,9 @@ combinedGDO <- subset(targetGDO, SNP %in% combinedReg)
 
 
 ```{r}
-targetGDO <- read.xlsx(paste0(wd,"//output//finalTargetGDOi30_remBadReg.xlsx"))
+targetGDO <- read.xlsx(paste0(wd,"//output//targetGDOi30_remBadReg.xlsx"))
+
+adtlGDO <- read.xlsx(paste0(wd,"//output//finalAdtlTargetGDOi30.xlsx"))
 
 targetGDO <- rbind(targetGDO, combinedGDO, adtlGDO)
 ```
@@ -221,7 +223,7 @@ targetGDO <- rbind(targetGDO, combinedGDO, adtlGDO)
 
 Export guide list:
 ```{r}
-write.xlsx(targetGDO, file = paste0(wd, "//output//finalAllTargetGDOi30.xlsx"))
+write.xlsx(targetGDO, file = paste0(wd, "//output//finalTargetGDOi30.xlsx"))
 
 # targetGDO <- read.xlsx(paste0(wd,"//output//finalTargetGDOi30.xlsx"))
 ```
