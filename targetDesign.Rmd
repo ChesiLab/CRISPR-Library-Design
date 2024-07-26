@@ -98,12 +98,13 @@ Load list of target GDOs
 wd <- getwd()
 wd # verify directory location
 
-targetGDO <- read.xlsx(paste0(wd,"//output//finalTargetGDOi30.xlsx"))
+targetGDO <- read.xlsx(paste0(wd,"//output//targetGDOi30.xlsx"))
 ```
 
 
 Regions for rs1870138|rs7080009 and rs1870137 are ~50bp away from each other. Let's combine them.
-We can reuse the guides from the Pilot Screen.
+We can reuse the guides from the Pilot Screen; these are already included in the library.
+We then rename the region to reflect the merging of the two regions.
 
 ```{r}
 # TSPAN14 3x SNP region:
