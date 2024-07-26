@@ -189,10 +189,11 @@ targetGDO <- bind_rows(targetGDO, subset(guidePool, sgRNA.Sequence=="TCTGCAGAATG
 See adtlRegions for the del region and repicking guides for two regions we are recombining.
 
 ```{r}
-write.xlsx(targetGDO, file = paste0(wd, "//output//finalTargetGDOi30_wPilot.xlsx"))
+write.xlsx(targetGDO, file = paste0(wd, "//output//targetGDOi30_wPilot.xlsx"))
 ```
 
 # Removing guides to problem regions
+
 Will repick using the adtl guides script.
 Should remove 12 guides, we will repick 6.
 Combine rs4989024 with rs1317708|rs874424
@@ -208,5 +209,5 @@ targetGDO <- subset(targetGDO, !(SNP %in% removeSNP) )
 ```
 
 ```{r}
-write.xlsx(targetGDO, file = paste0(wd, "//output//finalTargetGDOi30_remBadReg.xlsx"))
+write.xlsx(targetGDO, file = paste0(wd, "//output//targetGDOi30_remBadReg.xlsx"))
 ```
