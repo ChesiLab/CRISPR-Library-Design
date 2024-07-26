@@ -17,7 +17,7 @@ pacman::p_load(openxlsx, dplyr, tidyr, reshape2, stringr)
 wd <- getwd()
 wd
 
-target <- read.xlsx(paste0(wd,"//output//finalAllTargetGDOi30.xlsx"))
+target <- read.xlsx(paste0(wd,"//output//finalTargetGDOi30.xlsx"))
 promoter <- read.xlsx(paste0(wd,"//output//finalPromoterGDOa30.xlsx"))
 ntc <- read.xlsx(paste0(wd,"//crispick_output//sgrna_designs_NTC_i30.xlsx"))
 
