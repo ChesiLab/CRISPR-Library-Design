@@ -1,0 +1,94 @@
+---
+title: "Promoter-Targeting GDO Designs"
+author: Shannon Laub
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+if(!require('pacman')) {install.packages('pacman')}
+pacman::p_load(openxlsx, dplyr, tidyr, reshape2, stringr)
+
+# BiocManager::install("GenomicRanges")
+library(GenomicRanges)
+
+source('libraryDesignFunctions.R')
+```
+
+# Updating Positive Controls
+We submitted a list of interesting genes to CRISPick to design promoter targeting control guides.
+Next, we want to:
+1) Remove any designed guides that overlap with our validated guides.
+2) Of the remaining pool, pick the best performing guides. (i.e. top 3 or top 5)
+
+## Load Data
+```{r}
+wd <- getwd()
+
+# Import new guide designs
+posA30 <- read.xlsx(paste0(wd,"//crispick_output//sgrna_designs_promoter_a30.xlsx"))
+names(posA30)[names(posA30)=="Target.Gene.Symbol"] <- "SNP"
+
+# Get refseq conversion for chromosome numbers. Needed for compatibility with CRISPick
+refseqLookup <- read.delim(paste0(wd,"//input//seq_report_hg19.tsv"))
+refseqLookup <- subset(refseqLookup, Role=="assembled-molecule")
+
+# Rename columns for convenience
+names(refseqLookup)[names(refseqLookup)=="Chromosome.name"] <- "chr"
+names(refseqLookup)[names(refseqLookup)=="RefSeq.seq.accession"] <- "refseq"
+refseqLookup <- refseqLookup %>%
+  select(chr, refseq)
+```
+
+```{r}
+# Add chromosome number based on refseq lookup table
+posA30 <- addGDOLoc(posA30, refseqLookup)
+
+# Use Input as the "SNP" region
+names(posA30)[names(posA30)=="Target.Gene.Symbol"] <- "SNP"
+
+all(posA30$start < posA30$end) # CHECK that coordinate order is correct. TRUE if okay.
+
+# Add rownumber for reference later
+posA30$n <- as.numeric(rownames(posA30))
+
+
+all(posA30$n == as.numeric(rownames(posA30))) #CHECK that n == rownumber. TRUE if okay.
+```
+
+```{r}
+posGene <- read.table(paste0(wd,"//input//crispick_pos_ctrl.txt"))
+colnames(posGene) <- "SNP"
+
+validCtrl <- read.xlsx(paste0(wd, "//input//validated_pos_ctrl.xlsx"))
+```
+
+First remove any guides that overlap the validated guides.
+
+```{r}
+posOverlap <- findOverlap(validCtrl, posA30,
+                          "chr", "start", "end",
+                          "chr", "start", "end")
+# 12 new guides overlap the validated guides
+
+# Remove guides that overlap validated guides from the pool.
+posPool <- posA30[!posA30$n %in% posOverlap[,2],]
+
+```
+
+Pick top 3 guides for each promoter region:
+```{r}
+# Get indices of guides that are overlapping.
+posOverlap <- findSelfOverlap(posPool, "chr", "start", "end")
+
+# Pick top guides for each promoter region.
+topPos <- pickTopGDO(3, posA30, posGene, posOverlap)
+```
+
+Export the top guides. Go in order of pick order, fill in where we don't have validated guides.
+Will combine the lists manually since there's not too many guides.
+Need to manually pick+evaluate RPA1/SMYD4 guides since the region is overlapping..
+```{r}
+write.xlsx(topPos, file = paste0(wd, "//output//top3_promoter_a30.xlsx"))
+```
