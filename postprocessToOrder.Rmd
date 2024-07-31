@@ -19,7 +19,7 @@ wd
 
 target <- read.xlsx(paste0(wd,"//output//finalTargetGDOi30.xlsx"))
 promoter <- read.xlsx(paste0(wd,"//output//finalPromoterGDOa30.xlsx"))
-ntc <- read.xlsx(paste0(wd,"//crispick_output//sgrna_designs_NTC_i30.xlsx"))
+ntc <- read.xlsx(paste0(wd,"//input//NTC_list.xlsx"))
 
 ```
 
@@ -43,9 +43,7 @@ promFinal <- promoter %>%
   ungroup() %>%
   select(ID, sgRNA.Sequence, Orientation, chr, start, end)
 
-ntcFinal <- ntc %>%
-  mutate(ID = paste("NTC", row_number(), sep="_")) %>%
-  select(ID, sgRNA.Sequence, `#.Off-Target.Tier.III.Match.Bin.IV.Matches`)
+ntcFinal <- ntc
 ```
 
 # Combine all targeting + pos ctrl guides to create QC track for UCSC Genome Browser
@@ -93,4 +91,6 @@ names(orderList) <- c("Guide_ID", "Sequence")
 
 write.xlsx(orderList, paste0(wd,"//postprocessed//orderList.xlsx"))
 ```
+
+
 
