@@ -127,11 +127,17 @@ addGDOLoc <- function(GDO, refseqLookup){
   GDO <- GDO %>%
     mutate(
       start = case_when(
-        Orientation == "sense" ~ `sgRNA.'Cut'.Position`-17,
-        Orientation == "antisense" ~ `sgRNA.'Cut'.Position`-3),
+        (Strand.of.Target == "+" & Orientation == "sense") ~ `sgRNA.'Cut'.Position`-17,
+        (Strand.of.Target == "+" & Orientation == "antisense") ~ `sgRNA.'Cut'.Position`-3,
+        
+        (Strand.of.Target == "-" & Orientation == "sense") ~ `sgRNA.'Cut'.Position`-3,
+        (Strand.of.Target == "-" & Orientation == "antisense") ~ `sgRNA.'Cut'.Position`-17),
       end = case_when(
-        Orientation == "sense" ~ `sgRNA.'Cut'.Position`+2,
-        Orientation == "antisense" ~ `sgRNA.'Cut'.Position`+16)
+        (Strand.of.Target == "+" & Orientation == "sense") ~ `sgRNA.'Cut'.Position`+2,
+        (Strand.of.Target == "+" & Orientation == "antisense") ~ `sgRNA.'Cut'.Position`+16,
+        
+        (Strand.of.Target == "-" & Orientation == "sense") ~ `sgRNA.'Cut'.Position`+16,
+        (Strand.of.Target == "-" & Orientation == "antisense") ~ `sgRNA.'Cut'.Position`+2)
     )
   
   return(GDO)

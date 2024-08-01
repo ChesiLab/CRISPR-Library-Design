@@ -27,7 +27,7 @@ Next, we want to:
 wd <- getwd()
 
 # Import new guide designs
-posA30 <- read.xlsx(paste0(wd,"//crispick_output//sgrna_designs_promoter_a30.xlsx"))
+posA30raw <- read.xlsx(paste0(wd,"//crispick_output//sgrna_designs_promoter_a30.xlsx"))
 names(posA30)[names(posA30)=="Target.Gene.Symbol"] <- "SNP"
 
 # Get refseq conversion for chromosome numbers. Needed for compatibility with CRISPick
@@ -41,54 +41,112 @@ refseqLookup <- refseqLookup %>%
   select(chr, refseq)
 ```
 
+GDO Preprocessing
 ```{r}
-# Add chromosome number based on refseq lookup table
+keepCol <- c("Input", "Reference.Sequence","Strand.of.Target", "Orientation", "sgRNA.'Cut'.Position",  
+             "sgRNA.Sequence", "sgRNA.Context.Sequence", "On-Target.Efficacy.Score",
+             "#.Off-Target.Tier.I.Match.Bin.I.Matches", "#.Off-Target.Tier.II.Match.Bin.I.Matches",
+             "#.Off-Target.Tier.III.Match.Bin.I.Matches", "#.Off-Target.Tier.I.Match.Bin.II.Matches",
+             "#.Off-Target.Tier.II.Match.Bin.II.Matches", "#.Off-Target.Tier.III.Match.Bin.II.Matches",
+             "On-Target.Rank", "Off-Target.Rank",
+             "Pick.Order")
+posA30 <- select(posA30raw, all_of(keepCol))
+posA30 <- filterGDO(posA30)
 posA30 <- addGDOLoc(posA30, refseqLookup)
-
-# Use Input as the "SNP" region
-names(posA30)[names(posA30)=="Target.Gene.Symbol"] <- "SNP"
-
-all(posA30$start < posA30$end) # CHECK that coordinate order is correct. TRUE if okay.
-
-# Add rownumber for reference later
+posA30$SNP <- posA30$Input
 posA30$n <- as.numeric(rownames(posA30))
 
+# File is now ~same as preprocessed GDOs for target genes. Skipped region assignment since the input indicates the region, here.
+write.xlsx(posA30, paste0(wd,"//preprocessed//prom200bp_a30.xlsx"))
 
-all(posA30$n == as.numeric(rownames(posA30))) #CHECK that n == rownumber. TRUE if okay.
+# oldPos <- posA30
+```
+
+# Pick top GDOs.
+```{r}
+dirRegion <- paste0(wd,"//input//")
+dirGDO <- paste0(wd,"//preprocessed//")
+
+regionList <- c("prom200bp_a30")
+fileList <- c("prom200bp_a30")
+
+promGDO <- assembleLibrary(3, fileList, regionList, dirGDO, dirRegion,
+                          onTargetFilter = 0.2, pickByStrand = TRUE, overlapLeniency=2)
+
+```
+# Substitute for known working guides.
+```{r}
+# Load dataframe containing working guides from the pilot.
+pilot <- read.xlsx(paste0(wd,"//input//validated_pos_ctrl.xlsx"))
+pilot <- select(pilot, Target, Sequence, Pick.Order, chr, start, end)
+names(pilot) <- c("Input", "sgRNA.Sequence", "Pick.Order", "chr", "start","end")
+
+pilot <- pilot %>%
+  mutate(chr = as.character(chr))
+pilot$SNP <- pilot$Input
+```
+
+
+```{r}
+# the first FERMT2 guide got filtered out for GC content. Let's use it anyways.
+
+fermt2pos <- select(posA30raw, all_of(keepCol))
+fermt2pos <- subset(fermt2pos, Input == "FERMT2")
+# fermt2pos <- filterGDO(fermt2pos)
+fermt2pos <- addGDOLoc(fermt2pos, refseqLookup)
+fermt2pos$SNP <- fermt2pos$Input
+# what is this?? AGGCCGGCCGGACCCGCTCA #GCTCTGCGGGCGGCGAAGGA
+addGuide <- subset(fermt2pos, sgRNA.Sequence == "AGGCCGGCCGGACCCGCTCA")
+
+promGDO <- bind_rows(promGDO, addGuide)
 ```
 
 ```{r}
-posGene <- read.table(paste0(wd,"//input//crispick_pos_ctrl.txt"))
-colnames(posGene) <- "SNP"
-
-validCtrl <- read.xlsx(paste0(wd, "//input//validated_pos_ctrl.xlsx"))
+# Add two of the working TSPAN14 guides from the pilot.
+promGDO <- bind_rows(promGDO, subset(pilot, Input == "TSPAN14"))
 ```
 
-First remove any guides that overlap the validated guides.
-
 ```{r}
-posOverlap <- findOverlap(validCtrl, posA30,
-                          "chr", "start", "end",
-                          "chr", "start", "end")
-# 12 new guides overlap the validated guides
+# Sub in the working guides for BIN1, CLU, and SNX1
+# BIN1 - remove GCCAGGTCCGCGAGGAGGGAZ
+# CLU - remove ATCACCACGAATAGCTGTGC
+# SNX1 - remove GAGGAGTGGGAGGGCCGCAA
+removeGDO <- c("GCCAGGTCCGCGAGGAGGGA", "ATCACCACGAATAGCTGTGC", "GAGGAGTGGGAGGGCCGCAA")
+promGDO <- subset(promGDO, !(sgRNA.Sequence %in% removeGDO))
 
-# Remove guides that overlap validated guides from the pool.
-posPool <- posA30[!posA30$n %in% posOverlap[,2],]
-
+# Add in guides that were validated in the pilot.
+addGDO <- c("AAGATCTCCCCGCGCGAGAG", "GGAGCCAGCACAGCTATTCG", "ATTAACGAGTGGGGCCAAAG")
+promGDO <- bind_rows(promGDO, subset(pilot, sgRNA.Sequence %in% addGDO))
 ```
 
-Pick top 3 guides for each promoter region:
 ```{r}
-# Get indices of guides that are overlapping.
-posOverlap <- findSelfOverlap(posPool, "chr", "start", "end")
-
-# Pick top guides for each promoter region.
-topPos <- pickTopGDO(3, posA30, posGene, posOverlap)
+promGDO <- promGDO %>%
+  arrange(Input, Pick.Order)
 ```
 
-Export the top guides. Go in order of pick order, fill in where we don't have validated guides.
-Will combine the lists manually since there's not too many guides.
-Need to manually pick+evaluate RPA1/SMYD4 guides since the region is overlapping..
+
 ```{r}
-write.xlsx(topPos, file = paste0(wd, "//output//top3_promoter_a30.xlsx"))
+# Pick the top 3 from the RPA1/SMYD4 region
+# Also sub in the working guide from the pilot.
+keep <- c("RPA1", "SMYD4")
+lookat <- subset(promGDO, Input %in% keep)
+removeGDO <- c("CCACCGCCAAGACTTCCCCG", "TCCCAAGCGAGGCCTGGCGC", "GCGCTACGCAGCCGCCGCAT")
+promGDO <- subset(promGDO, !(sgRNA.Sequence %in% removeGDO))
+
+# Rename the region so it is shared.
+promGDO <- promGDO %>%
+  mutate(Input = case_when(
+    Input == "RPA1" ~ "RPA1|SMYD4",
+    Input == "SMYD4" ~ "RPA1|SMYD4",
+    TRUE ~ Input
+  ))
+```
+
+```{r}
+length(unique(promGDO$sgRNA.Sequence))
+```
+
+# Export pos ctrls
+```{r}
+write.xlsx(promGDO, paste0(wd,"//output//finalPromoterGDOa30.xlsx"))
 ```
