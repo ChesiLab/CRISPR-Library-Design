@@ -99,7 +99,7 @@ regions400 <- read.xlsx(paste0(wd,"//preprocessed//adtlRegions400.xlsx"))
 # Bin I - perfect match
 # Bin II - ~a few mismatched bases
 
-keepCol <- c("Input", "Reference.Sequence", "Orientation", "sgRNA.'Cut'.Position",  
+keepCol <- c("Input", "Reference.Sequence", "Strand.of.Target","Orientation", "sgRNA.'Cut'.Position",  
              "sgRNA.Sequence", "sgRNA.Context.Sequence", "On-Target.Efficacy.Score",
              "#.Off-Target.Tier.I.Match.Bin.I.Matches", "#.Off-Target.Tier.II.Match.Bin.I.Matches",
              "#.Off-Target.Tier.III.Match.Bin.I.Matches", "#.Off-Target.Tier.I.Match.Bin.II.Matches",
