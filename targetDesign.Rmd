@@ -84,6 +84,9 @@ Export guide list:
 ```{r}
 write.xlsx(targetGDO, file = paste0(wd, "//output//targetGDOi30.xlsx"))
 
+# old <- read.xlsx(paste0(wd, "//output/targetGDOi30.xlsx"))
+# test <- anti_join(targetGDO, old, by = "sgRNA.Sequence") # Identical
+
 # targetGDO <- read.xlsx(paste0(wd,"//output//finalTargetGDOi30.xlsx"))
 ```
 
@@ -190,6 +193,10 @@ See adtlRegions for the del region and repicking guides for two regions we are r
 
 ```{r}
 write.xlsx(targetGDO, file = paste0(wd, "//output//targetGDOi30_wPilot.xlsx"))
+
+# old <- read.xlsx(paste0(wd,"//output//targetGDOi30_wPilot.xlsx"))
+# test <- anti_join(targetGDO, old, by = "sgRNA.Sequence")
+
 ```
 
 # Removing guides to problem regions
@@ -208,6 +215,31 @@ removeSNP <- c("rs4989024","rs1317708|rs874424",
 targetGDO <- subset(targetGDO, !(SNP %in% removeSNP) )
 ```
 
+# Post-Cellecta QC
+Remove guides that did not pass QC + pick new guides to replace them.
+```{r}
+# targetGDO <- read.xlsx(paste0(wd, "//output//oldTargetGDOi30_remBadReg.xlsx"))
+
+removeGDO <- c("GGGGGAAGTAGTCAGAGATC","GGGGGAAGAAGACCCTGCAG") # rs1140239_1 and rs785143_3 respectively.
+targetGDO <- subset(targetGDO, !(sgRNA.Sequence %in% removeGDO))
+
+guidePool <- read.xlsx(paste0(wd, "//preprocessed//200bp_i30.xlsx"))
+guidePool <- subset(guidePool, (SNP == "rs1140239"))
+guidePool <- filterGDO(guidePool, minOnScore = 0.2)
+
+targetGDO <- bind_rows(targetGDO, subset(guidePool, sgRNA.Sequence=="GGAAGTAGTCAGAGATCTGG"))
+
+guidePool <- read.xlsx(paste0(wd, "//preprocessed//200bp_i30.xlsx"))
+guidePool <- subset(guidePool, (SNP == "rs785143"))
+guidePool <- filterGDO(guidePool, minOnScore = 0.2)
+
+targetGDO <- bind_rows(targetGDO, subset(guidePool, sgRNA.Sequence=="TGTCTAAAAGGGAACCACAG"))
+```
+
+
 ```{r}
 write.xlsx(targetGDO, file = paste0(wd, "//output//targetGDOi30_remBadReg.xlsx"))
+
+# old <- read.xlsx(paste0(wd, "//output//oldTargetGDOi30_remBadReg.xlsx"))
+# test <- anti_join(targetGDO, old, by = "sgRNA.Sequence")
 ```
