@@ -1,6 +1,6 @@
 ---
 title: "adtlROIDesign"
-output: html_notebook
+
 ---
 
 Will combine preprocessing + guide selection in one file.
@@ -166,7 +166,7 @@ rownames(snpList) <- NULL
 snpList$chr <- as.character(snpList$chr)
 ```
 ## Assemble Library
-
+adtlGDO library (12 guides for del region)
 ```{r}
 regionList <- c("adtlRegions200", "adtlRegions300", "adtlRegions400")
 fileList <- c("adtl200bp_i30","adtl300bp_i30","adtl400bp_i30")
@@ -196,27 +196,38 @@ rs2287322|rs8077638|rs34962442|rs62090051
 ```{r}
 regionList <- c("regions300", "regions400")
 fileList <- c("300bp_i30","400bp_i30")
-targetGDO <- assembleLibrary(3, fileList, regionList, dirGDO, dirRegion,
+reg300GDO <- assembleLibrary(3, fileList, regionList, dirGDO, dirRegion,
                           onTargetFilter = 0.2, pickByStrand = TRUE, overlapLeniency=2)
 
-uniqueGDO <- unique(targetGDO)
-nrow(uniqueGDO) == nrow(targetGDO)
+uniqueGDO <- unique(reg300GDO)
+nrow(uniqueGDO) == nrow(reg300GDO)
 
-overlap <- findSelfOverlap(targetGDO, "chr", "start","end", selfBool=TRUE)
-overlapLenient <- findSelfOverlap(targetGDO, "chr", "startL","endL", selfBool=TRUE)
+overlap <- findSelfOverlap(reg300GDO, "chr", "start","end", selfBool=TRUE)
+overlapLenient <- findSelfOverlap(reg300GDO, "chr", "startL","endL", selfBool=TRUE)
 
 combinedReg <- c("rs1317708|rs4989024|rs874424", "rs2287322|rs8077638|rs34962442|rs62090051")
 
-combinedGDO <- subset(targetGDO, SNP %in% combinedReg)
+combinedGDO <- subset(reg300GDO, SNP %in% combinedReg)
 ```
 
 
 ```{r}
 targetGDO <- read.xlsx(paste0(wd,"//output//targetGDOi30_remBadReg.xlsx"))
+# oldTarget <- read.xlsx(paste0(wd,"//output//oldTargetGDOi30_remBadReg.xlsx"))
 
-adtlGDO <- read.xlsx(paste0(wd,"//output//finalAdtlTargetGDOi30.xlsx"))
+# test <- anti_join(targetGDO, oldTarget, by = "sgRNA.Sequence")
+# test <- data.frame(unique(targetGDO$sgRNA.Sequence))
+# test <- data.frame(table(targetGDO$SNP))
+# adtlGDO <- read.xlsx(paste0(wd,"//output//finalAdtlTargetGDOi30.xlsx"))
 
 targetGDO <- rbind(targetGDO, combinedGDO, adtlGDO)
+```
+
+```{r}
+# Compare to old list before Cellecta QC:
+# oldTarget <- read.xlsx(paste0(wd,"//output//finalTargetGDOi30.xlsx"))
+# test <- anti_join(targetGDO, oldTarget, by="sgRNA.Sequence")
+# test <- anti_join(oldTarget, targetGDO, by="sgRNA.Sequence")
 ```
 
 
