@@ -10,6 +10,8 @@ knitr::opts_chunk$set(echo = TRUE)
 if(!require('pacman')) {install.packages('pacman')}
 pacman::p_load(openxlsx, dplyr, tidyr, reshape2, stringr)
 
+source('libraryDesignFunctions.R')
+
 ```
 
 # Load Relevant Libraries
@@ -92,5 +94,31 @@ names(orderList) <- c("Guide_ID", "Sequence")
 write.xlsx(orderList, paste0(wd,"//postprocessed//orderList.xlsx"))
 ```
 
+```{r}
+length(unique(orderList$Sequence))
+
+reg <- data.frame(unique(target$SNP))
+names(reg) <- "SNP"
+
+anti_join(reg, select(regions200, SNP))
+
+regions300 <- read.xlsx(paste0(wd,"//preprocessed//regions300.xlsx"))
+overlap <- findOverlap(target, regions300,
+                          "chr", "start", "end",
+                          "chr", "start", "end")
+
+regions500 <- read.xlsx(paste0(wd,"//preprocessed//regions500.xlsx"))
+overlap <- findOverlap(target, regions500,
+                          "chr", "start", "end",
+                          "chr", "start", "end")
+
+qcSimple(target)
+strand <- qcStrand(target)
+
+selfOverlap <- findSelfOverlap(target, "chr", "start", "end", selfBool=TRUE)
+
+targetex <- na.omit(target)
+loverlap <- findSelfOverlap(targetex, "chr", "startL", "endL", selfBool = FALSE)
+```
 
 
