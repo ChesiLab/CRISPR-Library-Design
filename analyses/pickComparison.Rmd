@@ -12,13 +12,14 @@ pacman::p_load(openxlsx, dplyr, tidyr, reshape2, stringr)
 # BiocManager::install("GenomicRanges")
 library(GenomicRanges)
 
-source('libraryDesignFunctions.R')
+source('..\\libraryDesignFunctions.R')
 # debug(assembleLibrary) # undebug(assembleLibrary)
 # debug(pickTopGDO) # undebug(pickTopGDO)
 ```
 
 # Set Directory Info
 ```{r}
+setwd("..")
 wd <- getwd()
 wd # verify directory location
 
