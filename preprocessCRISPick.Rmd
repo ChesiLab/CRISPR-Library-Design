@@ -1,6 +1,6 @@
 ---
 title: "preprocessCRISPick"
-output: html_notebook
+author: Shannon Laub
 ---
 
 ```{r setup, include=FALSE}
@@ -15,15 +15,23 @@ library(GenomicRanges)
 source('libraryDesignFunctions.R')
 ```
 
+# Set Path to Input Data
+Set your path to SNP locations here.
+Default location is located in the input folder.
+```{r}
+
+pathToLoc <- "//input//snp_loc_hg19.xlsx"
+
+```
 
 ```{r}
 # Load Data
-  
+
 wd <- getwd()
 wd # verify directory location
 
 # Load all SNPs.
-snp_list <- unique(read.xlsx(paste0(wd,"//input//snp_loc_hg19.xlsx")))
+snp_list <- unique(read.xlsx(paste0(wd, pathToLoc)))
 rownames(snp_list) <- NULL
 snp_list$chr <- as.character(snp_list$chr)
 
