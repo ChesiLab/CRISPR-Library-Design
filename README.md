@@ -23,16 +23,20 @@ To perform library design:
     - Set Directory Information + Assemble Library: performs basic library assembly
     - Remaining Sections: examples of adding or removing individual guides
 
-To compare different library designs, go through /analyses folder:
-- pickComparison.Rmd
-- overlapLeniency.Rmd
-
 libraryDesignFunctions.R contains functions to design the library and perform simple quality control of library designs.
+
 
 Final library design files located in 'output' folder:
 - finalPromoterGDOa30.xlsx: contains promoter targeting positive control guide designs.
 - finalTargetGDOi30.xlsx: contains guides targeting candidate CREs.
 
+---
+
+To compare different library parameters, go through /analyses folder:
+- pickComparison.Rmd: Can compare different libraries directly with simple QC.
+- overlapLeniency.Rmd: Compares impact of different guide overlap leniencies. i.e. if we allow 2 vs 4bp of overlap between the guides in the library.
+
+---
 
 Additional scripts:
 - adtlROIDesign.Rmd: Designs guides that tile along a large region rather than a 1bp SNP location.
