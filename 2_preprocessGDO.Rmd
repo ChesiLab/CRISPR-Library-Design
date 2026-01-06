@@ -1,7 +1,6 @@
 ---
-title: "preprocessGDO"
+title: "2_preprocessGDO"
 author: Shannon Laub
-output: html_notebook
 ---
 
 ```{r setup, include=FALSE}
