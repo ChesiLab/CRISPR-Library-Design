@@ -14,7 +14,7 @@ To perform library design:
     - Go to: https://portals.broadinstitute.org/gppx/crispick/public
     - Select Reference Genome: Human GRCh37. Pick your relevant mechanism, enzyme, and On Target Scorer.
     - Upload each regiion###.xlsx file of interest.
-    - Set CRISPick Quota - typically 50 is comprehensive.
+    - Set CRISPick Quota - 30 is plenty.
     - Save CRISPick outputs to the /crispick_output folder.
 3) Run **preprocessGDO.Rmd**: converts to friendly format for library design.
     - From 'crispick_output' folder: takes raw CRISPick output file, extracts relevant columns, adds guide locations and row index. 
